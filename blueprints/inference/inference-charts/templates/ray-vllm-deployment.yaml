@@ -105,6 +105,9 @@ spec:
         replicas: {{ .Values.inference.modelServer.deployment.replicas }}
         template:
           spec:
+            {{- if eq .Values.inference.accelerator "neuron" }}
+            schedulerName: my-scheduler
+            {{- end }}
             containers:
               - env:
                   - name: LD_LIBRARY_PATH
