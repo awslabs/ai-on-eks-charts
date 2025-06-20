@@ -1,0 +1,97 @@
+# Default values for inference-charts
+# This is a YAML-formatted file.
+
+global:
+  # Common settings across all inference types
+  image:
+    pullPolicy: IfNotPresent
+
+  # Common resource settings
+  resources:
+    requests:
+      cpu: 1
+      memory: 2Gi
+    limits:
+      cpu: 2
+      memory: 4Gi
+
+fluentbit:
+  image:
+    repository: fluent/fluent-bit
+    tag: 3.2.2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+vllm:
+  logLevel: debug
+  port: 8004
+
+modelParameters:
+  modelId: NousResearch/Llama-3.2-1B
+  gpuMemoryUtilization: 0.8
+  maxModelLen: 8192
+  maxNumSeqs:  4
+  maxNumBatchedTokens: 8192
+  tokenizerPoolSize: 4
+  maxParallelLoadingWorkers: 2
+  pipelineParallelSize: 1
+  tensorParallelSize: 1
+  enablePrefixCaching: true
+  numGpus: 1
+
+# Inference configuration
+inference:
+  serviceName: inference
+  serviceNamespace: default
+
+  # Accelerator type: gpu or neuron
+  accelerator: gpu
+
+  # Framework type: vllm or rayVllm
+  framework: vllm
+
+  modelServer:
+    rayVersion: 2.47.0
+    image:
+      repository: vllm/vllm-openai
+      tag: latest
+    deployment:
+      replicas: 1
+      maxReplicas: 2
+      minReplicas: 1
+      resources:
+        gpu:
+          requests:
+            nvidia.com/gpu: 1
+          limits:
+            nvidia.com/gpu: 1
+        neuron:
+          requests:
+            aws.amazon.com/neuron: 1
+          limits:
+            aws.amazon.com/neuron: 1
+    env: {}
+
+  observability:
+    rayPrometheusHost: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+    rayGrafanaHost: http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local
+    rayGrafanaIframeHost: http://localhost:3000
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 8000
+  annotations: {}
+
+# Ingress configuration
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts: []
+  tls: []
