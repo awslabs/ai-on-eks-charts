@@ -1,4 +1,4 @@
-# Inference Charts
+# AI on EKS Inference Charts
 
 This Helm chart provides deployment configurations for AI/ML inference workloads on both GPU and AWS Neuron (Inferentia) hardware.
 
@@ -26,18 +26,6 @@ Before installing the chart, create a Kubernetes secret with your Hugging Face t
 
 ```bash
 kubectl create secret generic hf-token --from-literal=token=your_huggingface_token
-```
-
-### Basic Installation
-
-```bash
-helm install inference-deployment ./inference-charts
-```
-
-### Installing with Custom Values
-
-```bash
-helm install inference-deployment ./inference-charts --values custom-values.yaml
 ```
 
 ## Configuration
@@ -87,15 +75,25 @@ The chart includes pre-configured values files for the following models:
 
 ### GPU Models
 
+- **DeepSeek R1 Distill Llama 8B**: `values-deepseek-r1-distill-llama-8b-ray-vllm-gpu.yaml` (Ray-VLLM)
 - **Llama 3.2 1B**: `values-llama-32-1b-vllm.yaml` (VLLM) and `values-llama-32-1b-ray-vllm.yaml` (Ray-VLLM)
 - **Llama 4 Scout 17B**: `values-llama-4-scout-17b-vllm.yaml` (VLLM)
 - **Mistral Small 24B**: `values-mistral-small-24b-ray-vllm.yaml` (Ray-VLLM)
 
 ### Neuron Models
 
+- **DeepSeek R1 Distill Llama 8B**: `values-deepseek-r1-distill-llama-8b-vllm-neuron.yaml` (VLLM)
+- **Llama 2 13B**: `values-llama-2-13b-ray-vllm-neuron.yaml` (Ray-VLLM)
+- **Llama 3 70B**: `values-llama-3-70b-ray-vllm-neuron.yaml` (Ray-VLLM)
 - **Llama 3.1 8B**: `values-llama-31-8b-vllm-neuron.yaml` (VLLM) and `values-llama-31-8b-ray-vllm-neuron.yaml` (Ray-VLLM)
 
 ## Examples
+
+### Deploy GPU Ray-VLLM with DeepSeek R1 Distill Llama 8B model
+
+```bash
+helm install deepseek-gpu-inference ./inference-charts --values values-deepseek-r1-distill-llama-8b-ray-vllm-gpu.yaml
+```
 
 ### Deploy GPU VLLM with Llama 3.2 1B model
 
@@ -107,6 +105,24 @@ helm install gpu-vllm-inference ./inference-charts --values values-llama-32-1b-v
 
 ```bash
 helm install gpu-ray-vllm-inference ./inference-charts --values values-llama-32-1b-ray-vllm.yaml
+```
+
+### Deploy Neuron VLLM with DeepSeek R1 Distill Llama 8B model
+
+```bash
+helm install deepseek-neuron-inference ./inference-charts --values values-deepseek-r1-distill-llama-8b-vllm-neuron.yaml
+```
+
+### Deploy Neuron Ray-VLLM with Llama 2 13B model
+
+```bash
+helm install llama2-neuron-inference ./inference-charts --values values-llama-2-13b-ray-vllm-neuron.yaml
+```
+
+### Deploy Neuron Ray-VLLM with Llama 3 70B model
+
+```bash
+helm install llama3-70b-neuron-inference ./inference-charts --values values-llama-3-70b-ray-vllm-neuron.yaml
 ```
 
 ### Deploy Neuron VLLM with Llama 3.1 8B model
