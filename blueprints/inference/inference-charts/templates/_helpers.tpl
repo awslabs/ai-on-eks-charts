@@ -54,12 +54,12 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 Component labels for VLLM
 */}}
 {{- define "inference-charts.vllmComponentLabels" -}}
-app.kubernetes.io/component: {{.Values.inference.serviceName}}-{{ .Values.inference.accelerator }}-vllm
+app.kubernetes.io/component: {{.Values.inference.serviceName}}
 {{- end }}
 
 {{/*
 Component labels for Ray-VLLM
 */}}
 {{- define "inference-charts.rayVllmComponentLabels" -}}
-app.kubernetes.io/component: {{.Values.inference.serviceName}}-{{ .Values.inference.accelerator }}-ray-vllm
+app.kubernetes.io/component: {{.Values.inference.serviceName}}
 {{- end }}

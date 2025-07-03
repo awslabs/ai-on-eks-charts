@@ -2,7 +2,7 @@
 apiVersion: ray.io/v1
 kind: RayService
 metadata:
-  name: {{.Values.inference.serviceName}}-{{ .Values.inference.accelerator }}-ray-vllm
+  name: {{.Values.inference.serviceName}}
   namespace: {{.Values.inference.serviceNamespace}}
 spec:
   deploymentUnhealthySecondThreshold: 900
@@ -10,7 +10,7 @@ spec:
     headGroupSpec:
       headService:
         metadata:
-          name: {{.Values.inference.serviceName}}-{{ .Values.inference.accelerator }}-ray-vllm
+          name: {{.Values.inference.serviceName}}
           namespace: {{.Values.inference.serviceNamespace}}
       rayStartParams:
         dashboard-host: 0.0.0.0
@@ -179,6 +179,48 @@ spec:
             {{- if .Values.inference.modelServer.deployment.instanceType }}
             nodeSelector:
               beta.kubernetes.io/instance-type: {{ .Values.inference.modelServer.deployment.instanceType }}
+            {{- end }}
+            {{- if and .Values.inference.modelServer.deployment.topologySpreadConstraints.enabled .Values.inference.modelServer.deployment.topologySpreadConstraints.constraints }}
+            topologySpreadConstraints:
+              {{- $firstConstraint := index .Values.inference.modelServer.deployment.topologySpreadConstraints.constraints 0 }}
+              # Prefer same AZ as head pod (soft constraint)
+              - maxSkew: {{ $firstConstraint.maxSkew }}
+                topologyKey: {{ $firstConstraint.topologyKey }}
+                whenUnsatisfiable: {{ $firstConstraint.whenUnsatisfiable }}
+                labelSelector:
+                  matchLabels:
+                    "ray.io/cluster": "{{$.Values.inference.serviceName}}"
+                    {{- range $key, $value := $firstConstraint.labelSelector.matchLabels }}
+                    "{{ $key }}": "{{ $value }}"
+                    {{- end }}
+              {{- if gt (len .Values.inference.modelServer.deployment.topologySpreadConstraints.constraints) 1 }}
+              {{- $secondConstraint := index .Values.inference.modelServer.deployment.topologySpreadConstraints.constraints 1 }}
+              # Require workers to be grouped together (hard constraint)
+              - maxSkew: {{ $secondConstraint.maxSkew }}
+                topologyKey: {{ $secondConstraint.topologyKey }}
+                whenUnsatisfiable: {{ $secondConstraint.whenUnsatisfiable }}
+                labelSelector:
+                  matchLabels:
+                    "ray.io/cluster": "{{$.Values.inference.serviceName}}"
+                    "ray.io/group": "worker"
+                    {{- range $key, $value := $secondConstraint.labelSelector.matchLabels }}
+                    "{{ $key }}": "{{ $value }}"
+                    {{- end }}
+              {{- end }}
+            {{- end }}
+            {{- if and .Values.inference.modelServer.deployment.podAffinity.enabled .Values.inference.modelServer.deployment.podAffinity.preferredDuringSchedulingIgnoredDuringExecution }}
+            affinity:
+              podAffinity:
+                preferredDuringSchedulingIgnoredDuringExecution:
+                  {{- range .Values.inference.modelServer.deployment.podAffinity.preferredDuringSchedulingIgnoredDuringExecution }}
+                  - weight: {{ .weight }}
+                    podAffinityTerm:
+                      topologyKey: {{ .podAffinityTerm.topologyKey }}
+                      labelSelector:
+                        matchLabels:
+                          "ray.io/cluster": "{{$.Values.inference.serviceName}}"
+                          "ray.io/group": "worker"
+                  {{- end }}
             {{- end }}
             volumes:
               - emptyDir: {}
