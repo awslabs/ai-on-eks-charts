@@ -83,6 +83,49 @@ spec:
                 - mountPath: /fluent-bit/etc/fluent-bit.conf
                   subPath: fluent-bit.conf
                   name: fluentbit-config
+          {{- if and .Values.inference.modelServer.deployment.topologySpreadConstraints.enabled .Values.inference.modelServer.deployment.topologySpreadConstraints.constraints }}
+          topologySpreadConstraints:
+          {{- $constraint := index .Values.inference.modelServer.deployment.topologySpreadConstraints.constraints 0 }}
+          - maxSkew: {{ $constraint.maxSkew }}
+            topologyKey: {{ $constraint.topologyKey }}
+            whenUnsatisfiable: {{ $constraint.whenUnsatisfiable }}
+            labelSelector:
+              matchLabels:
+                "ray.io/cluster": "{{$.Values.inference.serviceName}}-{{ $.Values.inference.accelerator }}-ray-vllm"
+                "ray.io/group": "headgroup"
+                {{- range $key, $value := $constraint.labelSelector.matchLabels }}
+                "{{ $key }}": "{{ $value }}"
+                {{- end }}
+          {{- end }}
+          {{- if or (and .Values.inference.modelServer.deployment.podAffinity.enabled .Values.inference.modelServer.deployment.podAffinity.preferredDuringSchedulingIgnoredDuringExecution) .Values.inference.modelServer.deployment.nodeAffinity.enabled }}
+          affinity:
+            {{- if and .Values.inference.modelServer.deployment.podAffinity.enabled .Values.inference.modelServer.deployment.podAffinity.preferredDuringSchedulingIgnoredDuringExecution }}
+            podAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                {{- range .Values.inference.modelServer.deployment.podAffinity.preferredDuringSchedulingIgnoredDuringExecution }}
+                - weight: {{ .weight }}
+                  podAffinityTerm:
+                    topologyKey: {{ .podAffinityTerm.topologyKey }}
+                    labelSelector:
+                      matchLabels:
+                        "ray.io/cluster": "{{$.Values.inference.serviceName}}-{{ $.Values.inference.accelerator }}-ray-vllm"
+                        {{- range $key, $value := .podAffinityTerm.labelSelector.matchLabels }}
+                        "{{ $key }}": "{{ $value }}"
+                        {{- end }}
+                {{- end }}
+            {{- end }}
+            {{- if .Values.inference.modelServer.deployment.nodeAffinity.enabled }}
+            nodeAffinity:
+              {{- if .Values.inference.modelServer.deployment.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution }}
+              preferredDuringSchedulingIgnoredDuringExecution:
+                {{- toYaml .Values.inference.modelServer.deployment.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution | nindent 16 }}
+              {{- end }}
+              {{- if .Values.inference.modelServer.deployment.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution }}
+              requiredDuringSchedulingIgnoredDuringExecution:
+                {{- toYaml .Values.inference.modelServer.deployment.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution | nindent 16 }}
+              {{- end }}
+            {{- end }}
+          {{- end }}
           volumes:
             - emptyDir: {}
               name: ray-logs
@@ -179,6 +222,63 @@ spec:
             {{- if .Values.inference.modelServer.deployment.instanceType }}
             nodeSelector:
               beta.kubernetes.io/instance-type: {{ .Values.inference.modelServer.deployment.instanceType }}
+            {{- end }}
+            {{- if and .Values.inference.modelServer.deployment.topologySpreadConstraints.enabled .Values.inference.modelServer.deployment.topologySpreadConstraints.constraints }}
+            topologySpreadConstraints:
+              {{- $firstConstraint := index .Values.inference.modelServer.deployment.topologySpreadConstraints.constraints 0 }}
+              # Prefer same AZ as head pod (soft constraint)
+              - maxSkew: {{ $firstConstraint.maxSkew }}
+                topologyKey: {{ $firstConstraint.topologyKey }}
+                whenUnsatisfiable: {{ $firstConstraint.whenUnsatisfiable }}
+                labelSelector:
+                  matchLabels:
+                    "ray.io/cluster": "{{$.Values.inference.serviceName}}-{{ $.Values.inference.accelerator }}-ray-vllm"
+                    {{- range $key, $value := $firstConstraint.labelSelector.matchLabels }}
+                    "{{ $key }}": "{{ $value }}"
+                    {{- end }}
+              {{- if gt (len .Values.inference.modelServer.deployment.topologySpreadConstraints.constraints) 1 }}
+              {{- $secondConstraint := index .Values.inference.modelServer.deployment.topologySpreadConstraints.constraints 1 }}
+              # Require workers to be grouped together (hard constraint)
+              - maxSkew: {{ $secondConstraint.maxSkew }}
+                topologyKey: {{ $secondConstraint.topologyKey }}
+                whenUnsatisfiable: {{ $secondConstraint.whenUnsatisfiable }}
+                labelSelector:
+                  matchLabels:
+                    "ray.io/cluster": "{{$.Values.inference.serviceName}}-{{ $.Values.inference.accelerator }}-ray-vllm"
+                    "ray.io/group": "worker"
+                    {{- range $key, $value := $secondConstraint.labelSelector.matchLabels }}
+                    "{{ $key }}": "{{ $value }}"
+                    {{- end }}
+              {{- end }}
+            {{- end }}
+            {{- if or (and .Values.inference.modelServer.deployment.podAffinity.enabled .Values.inference.modelServer.deployment.podAffinity.preferredDuringSchedulingIgnoredDuringExecution) .Values.inference.modelServer.deployment.nodeAffinity.enabled }}
+            affinity:
+              {{- if and .Values.inference.modelServer.deployment.podAffinity.enabled .Values.inference.modelServer.deployment.podAffinity.preferredDuringSchedulingIgnoredDuringExecution }}
+              podAffinity:
+                preferredDuringSchedulingIgnoredDuringExecution:
+                  {{- range .Values.inference.modelServer.deployment.podAffinity.preferredDuringSchedulingIgnoredDuringExecution }}
+                  - weight: {{ .weight }}
+                    podAffinityTerm:
+                      topologyKey: {{ .podAffinityTerm.topologyKey }}
+                      labelSelector:
+                        matchLabels:
+                          "ray.io/cluster": "{{$.Values.inference.serviceName}}-{{ $.Values.inference.accelerator }}-ray-vllm"
+                          {{- range $key, $value := .podAffinityTerm.labelSelector.matchLabels }}
+                          "{{ $key }}": "{{ $value }}"
+                          {{- end }}
+                  {{- end }}
+              {{- end }}
+              {{- if .Values.inference.modelServer.deployment.nodeAffinity.enabled }}
+              nodeAffinity:
+                {{- if .Values.inference.modelServer.deployment.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution }}
+                preferredDuringSchedulingIgnoredDuringExecution:
+                  {{- toYaml .Values.inference.modelServer.deployment.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution | nindent 18 }}
+                {{- end }}
+                {{- if .Values.inference.modelServer.deployment.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution }}
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  {{- toYaml .Values.inference.modelServer.deployment.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution | nindent 18 }}
+                {{- end }}
+              {{- end }}
             {{- end }}
             volumes:
               - emptyDir: {}
