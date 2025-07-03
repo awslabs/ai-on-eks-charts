@@ -41,11 +41,19 @@ The following table lists the configurable parameters of the inference-charts ch
 | `inference.serviceNamespace`                                             | Namespace for the inference service     | `default`                 |
 | `inference.modelServer.image.repository`                                 | Model server image repository           | `vllm/vllm-openai`        |
 | `inference.modelServer.image.tag`                                        | Model server image tag                  | `latest`                  |
+| `inference.modelServer.rayVersion`                                       | Ray version (for Ray deployments)       | `2.47.0`                  |
+| `inference.modelServer.vllmVersion`                                      | VLLM version (for Ray deployments)      | Not set                   |
+| `inference.modelServer.pythonVersion`                                    | Python version (for Ray deployments)    | Not set                   |
 | `inference.modelServer.deployment.replicas`                              | Number of replicas                      | `1`                       |
 | `inference.modelServer.deployment.minReplicas`                           | Minimum number of replicas (for Ray)    | `1`                       |
 | `inference.modelServer.deployment.maxReplicas`                           | Maximum number of replicas (for Ray)    | `2`                       |
+| `inference.modelServer.deployment.instanceType`                          | Node selector for instance type         | Not set                   |
 | `inference.modelServer.deployment.topologySpreadConstraints.enabled`     | Enable topology spread constraints      | `true`                    |
 | `inference.modelServer.deployment.topologySpreadConstraints.constraints` | List of topology spread constraints     | See default configuration |
+| `inference.modelServer.deployment.podAffinity.enabled`                   | Enable pod affinity                     | `true`                    |
+| `inference.observability.rayPrometheusHost`                              | Ray Prometheus host URL                 | `http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090` |
+| `inference.observability.rayGrafanaHost`                                 | Ray Grafana host URL                    | `http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local` |
+| `inference.observability.rayGrafanaIframeHost`                           | Ray Grafana iframe host URL             | `http://localhost:3000`   |
 | `vllm.logLevel`                                                          | Log level for VLLM                      | `debug`                   |
 | `vllm.port`                                                              | VLLM server port                        | `8004`                    |
 | `service.type`                                                           | Service type                            | `ClusterIP`               |
@@ -70,6 +78,8 @@ The chart provides configuration for various model parameters:
 | `modelParameters.tensorParallelSize`        | Tensor parallel size             | `1`                         |
 | `modelParameters.enablePrefixCaching`       | Enable prefix caching            | `true`                      |
 | `modelParameters.numGpus`                   | Number of GPUs to use            | `1`                         |
+
+**Note**: Model parameters are automatically converted to environment variables in SCREAMING_SNAKE_CASE format (e.g., `modelId` becomes `MODEL_ID`, `maxNumSeqs` becomes `MAX_NUM_SEQS`).
 
 ## Supported Models
 
