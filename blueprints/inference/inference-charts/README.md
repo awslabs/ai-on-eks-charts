@@ -44,10 +44,15 @@ The following table lists the configurable parameters of the inference-charts ch
 | `inference.modelServer.deployment.replicas`                       | Number of replicas | `1` |
 | `inference.modelServer.deployment.minReplicas`                    | Minimum number of replicas (for Ray) | `1` |
 | `inference.modelServer.deployment.maxReplicas`                    | Maximum number of replicas (for Ray) | `2` |
-| `inference.modelServer.deployment.autoscaling.enabled`            | Enable Ray native autoscaling | `false` |
-| `inference.modelServer.deployment.autoscaling.upscalingSpeed`     | Ray autoscaler upscaling speed | `1.0` |
-| `inference.modelServer.deployment.autoscaling.downscalingSpeed`   | Ray autoscaler downscaling speed | `1.0` |
-| `inference.modelServer.deployment.autoscaling.idleTimeoutSeconds` | Idle timeout before scaling down | `60` |
+| `inference.rayOptions.rayVersion`                                 | Ray version to use | `2.47.0` |
+| `inference.rayOptions.autoscaling.enabled`                        | Enable Ray native autoscaling | `false` |
+| `inference.rayOptions.autoscaling.upscalingMode`                  | Ray autoscaler upscaling mode | `Default` |
+| `inference.rayOptions.autoscaling.idleTimeoutSeconds`             | Idle timeout before scaling down | `60` |
+| `inference.rayOptions.autoscaling.actorAutoscaling.minActors`     | Minimum number of actors | `1` |
+| `inference.rayOptions.autoscaling.actorAutoscaling.maxActors`     | Maximum number of actors | `1` |
+| `inference.rayOptions.observability.rayPrometheusHost`            | Ray Prometheus host URL | `http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090` |
+| `inference.rayOptions.observability.rayGrafanaHost`               | Ray Grafana host URL | `http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local` |
+| `inference.rayOptions.observability.rayGrafanaIframeHost`         | Ray Grafana iframe host URL | `http://localhost:3000` |
 | `vllm.logLevel`                                                   | Log level for VLLM | `debug` |
 | `vllm.port`                                                       | VLLM server port | `8004` |
 | `service.type`                                                    | Service type | `ClusterIP` |
@@ -99,25 +104,25 @@ For Ray-VLLM deployments, you can enable Ray's native autoscaling feature which 
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `inference.autoscaling.enabled` | Enable Ray native autoscaling | `false` |
-| `inference.autoscaling.minReplicas` | Minimum number of worker replicas | `1` |
-| `inference.autoscaling.maxReplicas` | Maximum number of worker replicas | `10` |
-| `inference.autoscaling.upscalingSpeed` | How aggressively to scale up (1.0 = normal, >1.0 = more aggressive) | `1.0` |
-| `inference.autoscaling.downscalingSpeed` | How aggressively to scale down (1.0 = normal, >1.0 = more aggressive) | `1.0` |
-| `inference.autoscaling.idleTimeoutSeconds` | How long to wait before scaling down idle nodes | `60` |
+| `inference.rayOptions.autoscaling.enabled` | Enable Ray native autoscaling | `false` |
+| `inference.rayOptions.autoscaling.upscalingMode` | Ray autoscaler upscaling mode | `Default` |
+| `inference.rayOptions.autoscaling.idleTimeoutSeconds` | How long to wait before scaling down idle nodes | `60` |
+| `inference.rayOptions.autoscaling.actorAutoscaling.minActors` | Minimum number of actors | `1` |
+| `inference.rayOptions.autoscaling.actorAutoscaling.maxActors` | Maximum number of actors | `1` |
 
 ### Example Autoscaling Configuration
 
 ```yaml
 inference:
   framework: rayVllm
-  autoscaling:
-    enabled: true
-    minReplicas: 1
-    maxReplicas: 5
-    upscalingSpeed: 1.5  # Scale up more aggressively
-    downscalingSpeed: 0.5  # Scale down more conservatively
-    idleTimeoutSeconds: 120  # Wait 2 minutes before scaling down
+  rayOptions:
+    autoscaling:
+      enabled: true
+      upscalingMode: "Aggressive"
+      idleTimeoutSeconds: 120  # Wait 2 minutes before scaling down
+      actorAutoscaling:
+        minActors: 1
+        maxActors: 5
 ```
 
 ## Examples
@@ -186,6 +191,22 @@ inference:
   framework: vllm   # or rayVllm
   serviceName: custom-inference
   serviceNamespace: default
+
+  # Ray-specific options (only for rayVllm framework)
+  rayOptions:
+    rayVersion: 2.47.0
+    autoscaling:
+      enabled: false
+      upscalingMode: "Default"
+      idleTimeoutSeconds: 60
+      actorAutoscaling:
+        minActors: 1
+        maxActors: 1
+    observability:
+      rayPrometheusHost: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+      rayGrafanaHost: http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local
+      rayGrafanaIframeHost: http://localhost:3000
+
   modelServer:
     image:
       repository: vllm/vllm-openai
@@ -203,14 +224,14 @@ inference:
 
 modelParameters:
   modelId: "NousResearch/Llama-3.2-1B"
-  gpuMemoryUtilization: "0.8"
-  maxModelLen: "8192"
-  maxNumSeqs: "4"
-  maxNumBatchedTokens: "8192"
-  tokenizerPoolSize: "4"
-  maxParallelLoadingWorkers: "2"
-  pipelineParallelSize: "1"
-  tensorParallelSize: "1"
+  gpuMemoryUtilization: 0.8
+  maxModelLen: 8192
+  maxNumSeqs: 4
+  maxNumBatchedTokens: 8192
+  tokenizerPoolSize: 4
+  maxParallelLoadingWorkers: 2
+  pipelineParallelSize: 1
+  tensorParallelSize: 1
   enablePrefixCaching: true
   numGpus: 1
 ```
