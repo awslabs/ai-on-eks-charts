@@ -32,24 +32,28 @@ kubectl create secret generic hf-token --from-literal=token=your_huggingface_tok
 
 The following table lists the configurable parameters of the inference-charts chart and their default values.
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `global.image.pullPolicy` | Global image pull policy | `IfNotPresent` |
-| `inference.accelerator` | Accelerator type to use (gpu or neuron) | `gpu` |
-| `inference.framework` | Framework type to use (vllm or rayVllm) | `vllm` |
-| `inference.serviceName` | Name of the inference service | `inference` |
-| `inference.serviceNamespace` | Namespace for the inference service | `default` |
-| `inference.modelServer.image.repository` | Model server image repository | `vllm/vllm-openai` |
-| `inference.modelServer.image.tag` | Model server image tag | `latest` |
-| `inference.modelServer.deployment.replicas` | Number of replicas | `1` |
-| `inference.modelServer.deployment.minReplicas` | Minimum number of replicas (for Ray) | `1` |
-| `inference.modelServer.deployment.maxReplicas` | Maximum number of replicas (for Ray) | `2` |
-| `vllm.logLevel` | Log level for VLLM | `debug` |
-| `vllm.port` | VLLM server port | `8004` |
-| `service.type` | Service type | `ClusterIP` |
-| `service.port` | Service port | `8000` |
-| `fluentbit.image.repository` | Fluent Bit image repository | `fluent/fluent-bit` |
-| `fluentbit.image.tag` | Fluent Bit image tag | `3.2.2` |
+| Parameter                                                         | Description | Default |
+|-------------------------------------------------------------------|-------------|---------|
+| `global.image.pullPolicy`                                         | Global image pull policy | `IfNotPresent` |
+| `inference.accelerator`                                           | Accelerator type to use (gpu or neuron) | `gpu` |
+| `inference.framework`                                             | Framework type to use (vllm or rayVllm) | `vllm` |
+| `inference.serviceName`                                           | Name of the inference service | `inference` |
+| `inference.serviceNamespace`                                      | Namespace for the inference service | `default` |
+| `inference.modelServer.image.repository`                          | Model server image repository | `vllm/vllm-openai` |
+| `inference.modelServer.image.tag`                                 | Model server image tag | `latest` |
+| `inference.modelServer.deployment.replicas`                       | Number of replicas | `1` |
+| `inference.modelServer.deployment.minReplicas`                    | Minimum number of replicas (for Ray) | `1` |
+| `inference.modelServer.deployment.maxReplicas`                    | Maximum number of replicas (for Ray) | `2` |
+| `inference.modelServer.deployment.autoscaling.enabled`            | Enable Ray native autoscaling | `false` |
+| `inference.modelServer.deployment.autoscaling.upscalingSpeed`     | Ray autoscaler upscaling speed | `1.0` |
+| `inference.modelServer.deployment.autoscaling.downscalingSpeed`   | Ray autoscaler downscaling speed | `1.0` |
+| `inference.modelServer.deployment.autoscaling.idleTimeoutSeconds` | Idle timeout before scaling down | `60` |
+| `vllm.logLevel`                                                   | Log level for VLLM | `debug` |
+| `vllm.port`                                                       | VLLM server port | `8004` |
+| `service.type`                                                    | Service type | `ClusterIP` |
+| `service.port`                                                    | Service port | `8000` |
+| `fluentbit.image.repository`                                      | Fluent Bit image repository | `fluent/fluent-bit` |
+| `fluentbit.image.tag`                                             | Fluent Bit image tag | `3.2.2` |
 
 ### Model Parameters
 
@@ -86,6 +90,41 @@ The chart includes pre-configured values files for the following models:
 - **Llama 2 13B**: `values-llama-2-13b-ray-vllm-neuron.yaml` (Ray-VLLM)
 - **Llama 3 70B**: `values-llama-3-70b-ray-vllm-neuron.yaml` (Ray-VLLM)
 - **Llama 3.1 8B**: `values-llama-31-8b-vllm-neuron.yaml` (VLLM) and `values-llama-31-8b-ray-vllm-neuron.yaml` (Ray-VLLM)
+
+## Ray Native Autoscaling
+
+For Ray-VLLM deployments, you can enable Ray's native autoscaling feature which automatically scales worker nodes based on workload demand. This is more efficient than Kubernetes HPA as it understands Ray's internal workload distribution.
+
+### Autoscaling Configuration
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `inference.autoscaling.enabled` | Enable Ray native autoscaling | `false` |
+| `inference.autoscaling.minReplicas` | Minimum number of worker replicas | `1` |
+| `inference.autoscaling.maxReplicas` | Maximum number of worker replicas | `10` |
+| `inference.autoscaling.upscalingSpeed` | How aggressively to scale up (1.0 = normal, >1.0 = more aggressive) | `1.0` |
+| `inference.autoscaling.downscalingSpeed` | How aggressively to scale down (1.0 = normal, >1.0 = more aggressive) | `1.0` |
+| `inference.autoscaling.idleTimeoutSeconds` | How long to wait before scaling down idle nodes | `60` |
+
+### Example Autoscaling Configuration
+
+```yaml
+inference:
+  framework: rayVllm
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 5
+    upscalingSpeed: 1.5  # Scale up more aggressively
+    downscalingSpeed: 0.5  # Scale down more conservatively
+    idleTimeoutSeconds: 120  # Wait 2 minutes before scaling down
+```
+
+### Deploy with Autoscaling
+
+```bash
+helm install ray-autoscale-inference ./inference-charts --values values-ray-vllm-autoscaling.yaml
+```
 
 ## Examples
 

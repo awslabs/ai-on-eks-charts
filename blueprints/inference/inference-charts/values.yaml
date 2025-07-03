@@ -61,6 +61,13 @@ inference:
       repository: vllm/vllm-openai
       tag: latest
     deployment:
+      # Ray native autoscaling configuration
+      autoscaling:
+        enabled: false
+        # Ray autoscaler specific settings
+        upscalingSpeed: 1.0  # How aggressively to scale up (1.0 = normal, >1.0 = more aggressive)
+        downscalingSpeed: 1.0  # How aggressively to scale down (1.0 = normal, >1.0 = more aggressive)
+        idleTimeoutSeconds: 60  # How long to wait before scaling down idle nodes
       replicas: 1
       maxReplicas: 2
       minReplicas: 1

@@ -7,6 +7,14 @@ metadata:
 spec:
   deploymentUnhealthySecondThreshold: 900
   rayClusterConfig:
+    {{- if .Values.inference.modelServer.deployment.autoscaling.enabled }}
+    enableInTreeAutoscaling: true
+    autoscalerOptions:
+      upscalingSpeed: {{ .Values.inference.modelServer.deployment.autoscaling.upscalingSpeed | default 1.0 }}
+      downscalingSpeed: {{ .Values.inference.modelServer.deployment.autoscaling.downscalingSpeed | default 1.0 }}
+      idleTimeoutSeconds: {{ .Values.inference.modelServer.deployment.autoscaling.idleTimeoutSeconds | default 60 }}
+      resources: {}
+  {{- else }}
     headGroupSpec:
       headService:
         metadata:
@@ -100,9 +108,9 @@ spec:
       - groupName: worker
         maxReplicas: {{ .Values.inference.modelServer.deployment.maxReplicas }}
         minReplicas: {{ .Values.inference.modelServer.deployment.minReplicas }}
+          replicas: {{ .Values.inference.modelServer.deployment.replicas }}
         numOfHosts: 1
         rayStartParams: {}
-        replicas: {{ .Values.inference.modelServer.deployment.replicas }}
         template:
           spec:
             {{- if eq .Values.inference.accelerator "neuron" }}
