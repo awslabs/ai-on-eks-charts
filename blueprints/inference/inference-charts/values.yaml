@@ -55,8 +55,24 @@ inference:
   # Framework type: vllm or rayVllm
   framework: vllm
 
-  modelServer:
+  #Ray Specific Options
+  rayOptions:
     rayVersion: 2.47.0
+    # Ray native autoscaling configuration
+    autoscaling:
+      enabled: false
+      # Ray autoscaler specific settings
+      upscalingMode: "Default"
+      idleTimeoutSeconds: 60  # How long to wait before scaling down idle nodes
+      actorAutoscaling:
+        minActors: 1
+        maxActors: 1
+    observability:
+      rayPrometheusHost: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+      rayGrafanaHost: http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local
+      rayGrafanaIframeHost: http://localhost:3000
+
+  modelServer:
     image:
       repository: vllm/vllm-openai
       tag: latest
@@ -104,10 +120,6 @@ inference:
                 matchLabels: {} # Will be populated with deployment labels
     env: {}
 
-  observability:
-    rayPrometheusHost: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
-    rayGrafanaHost: http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local
-    rayGrafanaIframeHost: http://localhost:3000
 
 # Service configuration
 service:

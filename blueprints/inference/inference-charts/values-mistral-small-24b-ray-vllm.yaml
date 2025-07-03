@@ -17,8 +17,10 @@ inference:
   accelerator: gpu
   framework: rayVllm
 
-  modelServer:
+  rayOptions:
     rayVersion: 2.46.0
+
+  modelServer:
     vllmVersion: 0.9.0
     pythonVersion: 3.11
     image:

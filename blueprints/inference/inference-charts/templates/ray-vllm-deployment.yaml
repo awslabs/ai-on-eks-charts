@@ -7,6 +7,13 @@ metadata:
 spec:
   deploymentUnhealthySecondThreshold: 900
   rayClusterConfig:
+    {{- if .Values.inference.rayOptions.autoscaling.enabled }}
+    enableInTreeAutoscaling: true
+    autoscalerOptions:
+      upscalingMode: {{ .Values.inference.rayOptions.autoscaling.upscalingMode }}
+      idleTimeoutSeconds: {{ .Values.inference.rayOptions.autoscaling.idleTimeoutSeconds }}
+      resources: {}
+    {{- end }}
     headGroupSpec:
       headService:
         metadata:
@@ -27,11 +34,11 @@ spec:
                 - name: LD_LIBRARY_PATH
                   value: /home/ray/anaconda3/lib
                 - name: RAY_GRAFANA_HOST
-                  value: {{ .Values.inference.observability.rayGrafanaHost }}
+                  value: {{ .Values.inference.rayOptions.observability.rayGrafanaHost }}
                 - name: RAY_PROMETHEUS_HOST
-                  value: {{ .Values.inference.observability.rayPrometheusHost }}
+                  value: {{ .Values.inference.rayOptions.observability.rayPrometheusHost }}
                 - name: RAY_GRAFANA_IFRAME_HOST
-                  value: {{ .Values.inference.observability.rayGrafanaIframeHost }}
+                  value: {{ .Values.inference.rayOptions.observability.rayGrafanaIframeHost }}
               image: "{{ .Values.inference.modelServer.image.repository }}:{{ .Values.inference.modelServer.image.tag }}"
               imagePullPolicy: {{ .Values.global.image.pullPolicy }}
               lifecycle:
@@ -95,14 +102,14 @@ spec:
             - name: fluentbit-config
               configMap:
                 name: fluentbit-config
-    rayVersion: {{ .Values.inference.modelServer.rayVersion }}
+    rayVersion: {{ .Values.inference.rayOptions.rayVersion }}
     workerGroupSpecs:
       - groupName: worker
         maxReplicas: {{ .Values.inference.modelServer.deployment.maxReplicas }}
         minReplicas: {{ .Values.inference.modelServer.deployment.minReplicas }}
+        replicas: {{ .Values.inference.modelServer.deployment.replicas }}
         numOfHosts: 1
         rayStartParams: {}
-        replicas: {{ .Values.inference.modelServer.deployment.replicas }}
         template:
           spec:
             {{- if eq .Values.inference.accelerator "neuron" }}
@@ -245,5 +252,7 @@ spec:
               {{- else }}
               resources: {"neuron_cores": {{ mul .Values.modelParameters.numGpus 2 }}}
               {{- end }}
+            num_replicas: {{ .Values.inference.rayOptions.autoscaling.actorAutoscaling.minActors }}
+            max_replicas_per_node: {{ .Values.inference.rayOptions.autoscaling.actorAutoscaling.maxActors }}
   serviceUnhealthySecondThreshold: 900
 {{- end }}
