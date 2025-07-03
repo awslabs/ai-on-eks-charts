@@ -63,46 +63,21 @@ spec:
       {{- end }}
       {{- if and .Values.inference.modelServer.deployment.topologySpreadConstraints.enabled .Values.inference.modelServer.deployment.topologySpreadConstraints.constraints }}
       topologySpreadConstraints:
-        {{- range .Values.inference.modelServer.deployment.topologySpreadConstraints.constraints }}
-        - maxSkew: {{ .maxSkew }}
-          topologyKey: {{ .topologyKey }}
-          whenUnsatisfiable: {{ .whenUnsatisfiable }}
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
           labelSelector:
             matchLabels:
               "app.kubernetes.io/component": "{{$.Values.inference.serviceName}}-{{ $.Values.inference.accelerator }}-vllm"
-              {{- range $key, $value := .labelSelector.matchLabels }}
-              "{{ $key }}": "{{ $value }}"
-              {{- end }}
-        {{- end }}
       {{- end }}
-      {{- if or (and .Values.inference.modelServer.deployment.podAffinity.enabled .Values.inference.modelServer.deployment.podAffinity.preferredDuringSchedulingIgnoredDuringExecution) .Values.inference.modelServer.deployment.nodeAffinity.enabled }}
+      {{- if and .Values.inference.modelServer.deployment.podAffinity.enabled .Values.inference.modelServer.deployment.podAffinity.preferredDuringSchedulingIgnoredDuringExecution }}
       affinity:
-        {{- if and .Values.inference.modelServer.deployment.podAffinity.enabled .Values.inference.modelServer.deployment.podAffinity.preferredDuringSchedulingIgnoredDuringExecution }}
         podAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            {{- range .Values.inference.modelServer.deployment.podAffinity.preferredDuringSchedulingIgnoredDuringExecution }}
-            - weight: {{ .weight }}
-              podAffinityTerm:
-                topologyKey: {{ .podAffinityTerm.topologyKey }}
-                labelSelector:
-                  matchLabels:
-                    "app.kubernetes.io/component": "{{$.Values.inference.serviceName}}-{{ $.Values.inference.accelerator }}-vllm"
-                    {{- range $key, $value := .podAffinityTerm.labelSelector.matchLabels }}
-                    "{{ $key }}": "{{ $value }}"
-                    {{- end }}
-            {{- end }}
-        {{- end }}
-        {{- if .Values.inference.modelServer.deployment.nodeAffinity.enabled }}
-        nodeAffinity:
-          {{- if .Values.inference.modelServer.deployment.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution }}
-          preferredDuringSchedulingIgnoredDuringExecution:
-            {{- toYaml .Values.inference.modelServer.deployment.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution | nindent 12 }}
-          {{- end }}
-          {{- if .Values.inference.modelServer.deployment.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution }}
           requiredDuringSchedulingIgnoredDuringExecution:
-            {{- toYaml .Values.inference.modelServer.deployment.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution | nindent 12 }}
-          {{- end }}
-        {{- end }}
+            - topologyKey: topology.kubernetes.io/zone
+              labelSelector:
+                matchLabels:
+                  "app.kubernetes.io/component": "{{$.Values.inference.serviceName}}-{{ $.Values.inference.accelerator }}-vllm"
       {{- end }}
       volumes:
         - configMap:
