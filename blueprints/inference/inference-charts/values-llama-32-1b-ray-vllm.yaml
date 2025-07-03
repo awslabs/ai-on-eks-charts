@@ -12,7 +12,7 @@ modelParameters:
   numGpus: 1
 
 inference:
-  serviceName: llama-32-1b-vllm
+  serviceName: llama-32-1b-ray-vllm
   serviceNamespace: default
   accelerator: gpu
   framework: rayVllm
