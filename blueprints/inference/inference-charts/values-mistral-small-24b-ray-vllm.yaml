@@ -12,13 +12,15 @@ modelParameters:
   numGpus: 4
 
 inference:
-  serviceName: mistral-small-24B-instruct-2501
+  serviceName: mistral-small-24B-instruct-2501-ray-vllm
   serviceNamespace: default
   accelerator: gpu
   framework: rayVllm
 
-  modelServer:
+  rayOptions:
     rayVersion: 2.46.0
+
+  modelServer:
     vllmVersion: 0.9.0
     pythonVersion: 3.11
     image:

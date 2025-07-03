@@ -12,15 +12,15 @@ The following service is available:
 
 {{- if eq .Values.inference.framework "vllm" }}
 {{ .Values.inference.accelerator | title }} VLLM Service:
-  $ kubectl get svc {{ .Release.Name }}-{{ .Values.inference.accelerator }}-vllm
+  $ kubectl get svc {{ .Release.Name }}
 
   Access the OpenAI-compatible API at:
-  http://{{ .Release.Name }}-{{ .Values.inference.accelerator }}-vllm:{{ .Values.service.port }}/v1/chat/completions
+  http://{{ .Release.Name }}:{{ .Values.service.port }}/v1/chat/completions
 {{- end }}
 
 {{- if eq .Values.inference.framework "rayVllm" }}
 {{ .Values.inference.accelerator | title }} Ray-VLLM Service:
-  $ kubectl get svc {{ .Release.Name }}-{{ .Values.inference.accelerator }}-ray-vllm
+  $ kubectl get svc {{ .Release.Name }}
 
   Access the OpenAI-compatible API at:
   http://{{ .Release.Name }}-{{ .Values.inference.accelerator }}-ray-vllm:{{ .Values.service.port }}/v1/chat/completions

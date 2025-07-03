@@ -58,9 +58,7 @@ data:
             return {}
 
 
-    @serve.deployment(name="serve",
-                      autoscaling_config={"min_replicas": 1, "max_replicas": 2},
-                      )
+    @serve.deployment(name="serve")
     @serve.ingress(app)
     class VLLMDeployment:
         def __init__(self, response_role: str = "assistant",

@@ -11,7 +11,7 @@ modelParameters:
   numGpus: 12
 
 inference:
-  serviceName: llama-3-70b
+  serviceName: llama-3-70b-ray-vllm-neuron
   serviceNamespace: default
   accelerator: neuron
   framework: rayVllm
