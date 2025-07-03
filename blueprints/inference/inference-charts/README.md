@@ -120,12 +120,6 @@ inference:
     idleTimeoutSeconds: 120  # Wait 2 minutes before scaling down
 ```
 
-### Deploy with Autoscaling
-
-```bash
-helm install ray-autoscale-inference ./inference-charts --values values-ray-vllm-autoscaling.yaml
-```
-
 ## Examples
 
 ### Deploy GPU Ray-VLLM with DeepSeek R1 Distill Llama 8B model
