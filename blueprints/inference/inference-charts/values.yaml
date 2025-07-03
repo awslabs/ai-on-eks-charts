@@ -55,19 +55,28 @@ inference:
   # Framework type: vllm or rayVllm
   framework: vllm
 
-  modelServer:
+  #Ray Specific Options
+  rayOptions:
     rayVersion: 2.47.0
+    # Ray native autoscaling configuration
+    autoscaling:
+      enabled: false
+      # Ray autoscaler specific settings
+      upscalingMode: "Default"
+      idleTimeoutSeconds: 60  # How long to wait before scaling down idle nodes
+      actorAutoscaling:
+        minActors: 1
+        maxActors: 1
+    observability:
+      rayPrometheusHost: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+      rayGrafanaHost: http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local
+      rayGrafanaIframeHost: http://localhost:3000
+
+  modelServer:
     image:
       repository: vllm/vllm-openai
       tag: latest
     deployment:
-      # Ray native autoscaling configuration
-      autoscaling:
-        enabled: false
-        # Ray autoscaler specific settings
-        upscalingSpeed: 1.0  # How aggressively to scale up (1.0 = normal, >1.0 = more aggressive)
-        downscalingSpeed: 1.0  # How aggressively to scale down (1.0 = normal, >1.0 = more aggressive)
-        idleTimeoutSeconds: 60  # How long to wait before scaling down idle nodes
       replicas: 1
       maxReplicas: 2
       minReplicas: 1
@@ -84,10 +93,6 @@ inference:
             aws.amazon.com/neuron: 1
     env: {}
 
-  observability:
-    rayPrometheusHost: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
-    rayGrafanaHost: http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local
-    rayGrafanaIframeHost: http://localhost:3000
 
 # Service configuration
 service:
