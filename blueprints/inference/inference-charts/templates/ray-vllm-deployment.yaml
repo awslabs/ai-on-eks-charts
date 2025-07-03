@@ -212,14 +212,15 @@ spec:
             affinity:
               podAffinity:
                 preferredDuringSchedulingIgnoredDuringExecution:
-                  - weight: 100
+                  {{- range .Values.inference.modelServer.deployment.podAffinity.preferredDuringSchedulingIgnoredDuringExecution }}
+                  - weight: {{ .weight }}
                     podAffinityTerm:
-                      topologyKey: topology.kubernetes.io/zone
+                      topologyKey: {{ .podAffinityTerm.topologyKey }}
                       labelSelector:
                         matchLabels:
                           "ray.io/cluster": "{{$.Values.inference.serviceName}}"
                           "ray.io/group": "worker"
-
+                  {{- end }}
             {{- end }}
             volumes:
               - emptyDir: {}
