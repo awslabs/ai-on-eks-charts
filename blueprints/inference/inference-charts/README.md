@@ -9,6 +9,7 @@ The chart supports the following deployment types:
 - GPU-based Ray-VLLM deployments
 - Neuron-based VLLM deployments
 - Neuron-based Ray-VLLM deployments
+- Ray-VLLM deployments with GCS High Availability
 
 ## Prerequisites
 
@@ -32,42 +33,58 @@ kubectl create secret generic hf-token --from-literal=token=your_huggingface_tok
 
 The following table lists the configurable parameters of the inference-charts chart and their default values.
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `global.image.pullPolicy` | Global image pull policy | `IfNotPresent` |
-| `inference.accelerator` | Accelerator type to use (gpu or neuron) | `gpu` |
-| `inference.framework` | Framework type to use (vllm or rayVllm) | `vllm` |
-| `inference.serviceName` | Name of the inference service | `inference` |
-| `inference.serviceNamespace` | Namespace for the inference service | `default` |
-| `inference.modelServer.image.repository` | Model server image repository | `vllm/vllm-openai` |
-| `inference.modelServer.image.tag` | Model server image tag | `latest` |
-| `inference.modelServer.deployment.replicas` | Number of replicas | `1` |
-| `inference.modelServer.deployment.minReplicas` | Minimum number of replicas (for Ray) | `1` |
-| `inference.modelServer.deployment.maxReplicas` | Maximum number of replicas (for Ray) | `2` |
-| `vllm.logLevel` | Log level for VLLM | `debug` |
-| `vllm.port` | VLLM server port | `8004` |
-| `service.type` | Service type | `ClusterIP` |
-| `service.port` | Service port | `8000` |
-| `fluentbit.image.repository` | Fluent Bit image repository | `fluent/fluent-bit` |
-| `fluentbit.image.tag` | Fluent Bit image tag | `3.2.2` |
+| Parameter                                      | Description                             | Default             |
+| ---------------------------------------------- | --------------------------------------- | ------------------- |
+| `global.image.pullPolicy`                      | Global image pull policy                | `IfNotPresent`      |
+| `inference.accelerator`                        | Accelerator type to use (gpu or neuron) | `gpu`               |
+| `inference.framework`                          | Framework type to use (vllm or rayVllm) | `vllm`              |
+| `inference.serviceName`                        | Name of the inference service           | `inference`         |
+| `inference.serviceNamespace`                   | Namespace for the inference service     | `default`           |
+| `inference.modelServer.image.repository`       | Model server image repository           | `vllm/vllm-openai`  |
+| `inference.modelServer.image.tag`              | Model server image tag                  | `latest`            |
+| `inference.modelServer.deployment.replicas`    | Number of replicas                      | `1`                 |
+| `inference.modelServer.deployment.minReplicas` | Minimum number of replicas (for Ray)    | `1`                 |
+| `inference.modelServer.deployment.maxReplicas` | Maximum number of replicas (for Ray)    | `2`                 |
+| `vllm.logLevel`                                | Log level for VLLM                      | `debug`             |
+| `vllm.port`                                    | VLLM server port                        | `8004`              |
+| `service.type`                                 | Service type                            | `ClusterIP`         |
+| `service.port`                                 | Service port                            | `8000`              |
+| `fluentbit.image.repository`                   | Fluent Bit image repository             | `fluent/fluent-bit` |
+| `fluentbit.image.tag`                          | Fluent Bit image tag                    | `3.2.2`             |
 
 ### Model Parameters
 
 The chart provides configuration for various model parameters:
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `modelParameters.modelId` | Model ID from Hugging Face Hub | `NousResearch/Llama-3.2-1B` |
-| `modelParameters.gpuMemoryUtilization` | GPU memory utilization | `0.8` |
-| `modelParameters.maxModelLen` | Maximum model sequence length | `8192` |
-| `modelParameters.maxNumSeqs` | Maximum number of sequences | `4` |
-| `modelParameters.maxNumBatchedTokens` | Maximum number of batched tokens | `8192` |
-| `modelParameters.tokenizerPoolSize` | Tokenizer pool size | `4` |
-| `modelParameters.maxParallelLoadingWorkers` | Maximum parallel loading workers | `2` |
-| `modelParameters.pipelineParallelSize` | Pipeline parallel size | `1` |
-| `modelParameters.tensorParallelSize` | Tensor parallel size | `1` |
-| `modelParameters.enablePrefixCaching` | Enable prefix caching | `true` |
-| `modelParameters.numGpus` | Number of GPUs to use | `1` |
+| Parameter                                   | Description                      | Default                     |
+| ------------------------------------------- | -------------------------------- | --------------------------- |
+| `modelParameters.modelId`                   | Model ID from Hugging Face Hub   | `NousResearch/Llama-3.2-1B` |
+| `modelParameters.gpuMemoryUtilization`      | GPU memory utilization           | `0.8`                       |
+| `modelParameters.maxModelLen`               | Maximum model sequence length    | `8192`                      |
+| `modelParameters.maxNumSeqs`                | Maximum number of sequences      | `4`                         |
+| `modelParameters.maxNumBatchedTokens`       | Maximum number of batched tokens | `8192`                      |
+| `modelParameters.tokenizerPoolSize`         | Tokenizer pool size              | `4`                         |
+| `modelParameters.maxParallelLoadingWorkers` | Maximum parallel loading workers | `2`                         |
+| `modelParameters.pipelineParallelSize`      | Pipeline parallel size           | `1`                         |
+| `modelParameters.tensorParallelSize`        | Tensor parallel size             | `1`                         |
+| `modelParameters.enablePrefixCaching`       | Enable prefix caching            | `true`                      |
+| `modelParameters.numGpus`                   | Number of GPUs to use            | `1`                         |
+
+### Ray GCS High Availability Parameters
+
+For Ray-VLLM deployments, you can enable GCS (Global Control Store) high availability:
+
+| Parameter                                                           | Description                                              | Default |
+| ------------------------------------------------------------------- | -------------------------------------------------------- | ------- |
+| `inference.rayOptions.gcs.highAvailability.enabled`                 | Enable GCS high availability                             | `false` |
+| `inference.rayOptions.gcs.highAvailability.replicas`                | Number of GCS replicas                                   | `3`     |
+| `inference.rayOptions.gcs.highAvailability.redis.enabled`           | Use Redis for GCS state storage                          | `false` |
+| `inference.rayOptions.gcs.highAvailability.redis.connectionString`  | Redis connection string (leave empty for internal Redis) | `""`    |
+| `inference.rayOptions.gcs.highAvailability.redis.password`          | Redis password                                           | `""`    |
+| `inference.rayOptions.gcs.highAvailability.redis.connectionTimeout` | Redis connection timeout in seconds                      | `5`     |
+| `inference.rayOptions.gcs.highAvailability.redis.commandTimeout`    | Redis command timeout in seconds                         | `5`     |
+| `inference.rayOptions.gcs.server.persistence`                       | Enable GCS server persistence                            | `true`  |
+| `inference.rayOptions.gcs.server.checkpointInterval`                | GCS checkpoint interval in seconds                       | `10`    |
 
 ## Supported Models
 
@@ -196,6 +213,59 @@ The deployed service exposes the following OpenAI-compatible API endpoints:
 - `/v1/completions` - Text completion API
 - `/v1/chat/completions` - Chat completion API
 - `/metrics` - Prometheus metrics endpoint
+
+## Ray GCS High Availability
+
+For production Ray-VLLM deployments, you can enable GCS (Global Control Store) high availability using the RayService CRD's native support to ensure fault tolerance and prevent single points of failure.
+
+### Features
+
+- **Native CRD Support**: Uses RayService CRD's built-in GCS HA configuration
+- **Fault Tolerance**: GCS state is persisted to Redis, allowing recovery from head node failures
+- **Automatic Recovery**: Ray cluster can recover from GCS failures without losing job state
+- **Scalability**: Multiple GCS replicas can handle increased load
+- **Flexible Storage**: Support for both internal Redis (deployed with the chart) and external Redis clusters
+
+### Example Configuration
+
+The chart uses the RayService CRD's native GCS HA configuration:
+
+```yaml
+inference:
+  framework: rayVllm
+  rayOptions:
+    gcs:
+      highAvailability:
+        enabled: true
+        redis:
+          address: redis.redis
+          port: 6379
+          secretName: redis-secret
+          secretPasswordKey: redis-password
+```
+
+## Troubleshooting GCS High Availability
+
+### Common Issues
+
+1. **Redis Connection Issues**
+   - Check Redis service is running: `kubectl get pods -l app.kubernetes.io/component=redis-gcs`
+   - Verify Redis connectivity: `kubectl exec -it <ray-head-pod> -- redis-cli -h <redis-service> ping`
+
+2. **GCS Recovery**
+   - Check RayService status: `kubectl get rayservice <service-name> -o yaml`
+   - Check GCS logs: `kubectl logs <ray-head-pod> -c head | grep -i gcs`
+   - Verify Redis contains GCS state: `kubectl exec -it <redis-pod> -- redis-cli keys "*"`
+
+3. **Performance Issues**
+   - Increase Redis resources if experiencing timeouts
+   - Monitor Redis memory usage
+
+### Monitoring
+
+- GCS metrics are available at `/metrics` endpoint
+- Redis metrics can be monitored using Redis Exporter
+- Ray dashboard shows cluster health and GCS status
 
 ## Observability
 

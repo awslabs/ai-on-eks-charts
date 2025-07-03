@@ -7,6 +7,16 @@ metadata:
 spec:
   deploymentUnhealthySecondThreshold: 900
   rayClusterConfig:
+    {{- if and .Values.inference.rayOptions.gcs.highAvailability.enabled }}
+    # GCS High Availability Configuration using RayService CRD
+    gcsFaultToleranceOptions:
+      redisAddress: {{ .Values.rayOptions.gcs.highAvailability.redis.address }}:{{ .Values.rayOptions.gcs.highAvailability.redis.port }}
+      redisPassword:
+        valueFrom:
+          secretKeyRef:
+            key: {{ .Values.rayOptions.gcs.highAvailability.redis.secretName }}
+            name: {{ .Values.rayOptions.gcs.highAvailability.redis.secretPasswordKey }}
+    {{- end }}
     headGroupSpec:
       headService:
         metadata:
