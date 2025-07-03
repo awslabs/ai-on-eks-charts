@@ -1,6 +1,8 @@
 # AI on EKS Inference Charts
 
-This Helm chart provides deployment configurations for AI/ML inference workloads on both GPU and AWS Neuron (Inferentia) hardware.
+Chart Name: `ai-on-eks-inference-charts`
+
+This Helm chart provides deployment configurations for AI/ML inference workloads on both GPU and AWS Neuron (Inferentia/Trainium) hardware.
 
 ## Overview
 
@@ -9,6 +11,22 @@ The chart supports the following deployment types:
 - GPU-based Ray-VLLM deployments
 - Neuron-based VLLM deployments
 - Neuron-based Ray-VLLM deployments
+
+### VLLM vs Ray-VLLM
+
+**VLLM Deployments** (`framework: vllm`):
+- Direct VLLM deployment using Kubernetes Deployment
+- Simpler architecture, faster startup
+- Uses `vllm/vllm-openai` image
+- Suitable for single-node inference
+
+**Ray-VLLM Deployments** (`framework: rayVllm`):
+- VLLM deployed on Ray Serve for distributed inference
+- More complex architecture with head and worker nodes
+- Uses `rayproject/ray` image
+- Supports autoscaling and distributed workloads
+- Includes observability integration with Prometheus and Grafana
+- Requires additional parameters: `rayVersion`, `vllmVersion`, `pythonVersion`
 
 ## Prerequisites
 
