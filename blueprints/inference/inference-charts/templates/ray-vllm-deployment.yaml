@@ -2,7 +2,7 @@
 apiVersion: ray.io/v1
 kind: RayService
 metadata:
-  name: {{.Values.inference.serviceName}}-{{ .Values.inference.accelerator }}-ray-vllm
+  name: {{.Values.inference.serviceName}}
   namespace: {{.Values.inference.serviceNamespace}}
 spec:
   deploymentUnhealthySecondThreshold: 900
@@ -10,7 +10,7 @@ spec:
     headGroupSpec:
       headService:
         metadata:
-          name: {{.Values.inference.serviceName}}-{{ .Values.inference.accelerator }}-ray-vllm
+          name: {{.Values.inference.serviceName}}
           namespace: {{.Values.inference.serviceNamespace}}
       rayStartParams:
         dashboard-host: 0.0.0.0
@@ -189,7 +189,7 @@ spec:
                 whenUnsatisfiable: {{ $firstConstraint.whenUnsatisfiable }}
                 labelSelector:
                   matchLabels:
-                    "ray.io/cluster": "{{$.Values.inference.serviceName}}-{{ $.Values.inference.accelerator }}-ray-vllm"
+                    "ray.io/cluster": "{{$.Values.inference.serviceName}}"
                     {{- range $key, $value := $firstConstraint.labelSelector.matchLabels }}
                     "{{ $key }}": "{{ $value }}"
                     {{- end }}
@@ -201,7 +201,7 @@ spec:
                 whenUnsatisfiable: {{ $secondConstraint.whenUnsatisfiable }}
                 labelSelector:
                   matchLabels:
-                    "ray.io/cluster": "{{$.Values.inference.serviceName}}-{{ $.Values.inference.accelerator }}-ray-vllm"
+                    "ray.io/cluster": "{{$.Values.inference.serviceName}}"
                     "ray.io/group": "worker"
                     {{- range $key, $value := $secondConstraint.labelSelector.matchLabels }}
                     "{{ $key }}": "{{ $value }}"
@@ -217,7 +217,7 @@ spec:
                       topologyKey: topology.kubernetes.io/zone
                       labelSelector:
                         matchLabels:
-                          "ray.io/cluster": "{{$.Values.inference.serviceName}}-{{ $.Values.inference.accelerator }}-ray-vllm"
+                          "ray.io/cluster": "{{$.Values.inference.serviceName}}"
                           "ray.io/group": "worker"
 
             {{- end }}
