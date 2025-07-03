@@ -274,47 +274,6 @@ Then install the chart with your custom values:
 helm install custom-inference ./inference-charts --values custom-values.yaml
 ```
 
-### Deploy with Topology Constraints Disabled
-
-```bash
-helm install no-topology-inference ./inference-charts --values values-topology-disabled.yaml
-```
-
-### Deploy with Custom Topology Constraints
-
-```bash
-helm install custom-topology-inference ./inference-charts --values values-topology-custom.yaml
-```
-
-### Deploy Ray with Co-located Head and Worker Pods
-
-```bash
-helm install ray-colocated-inference ./inference-charts --values values-ray-colocated.yaml
-```
-
-### Deploy with Karpenter Optimization
-
-```bash
-helm install karpenter-optimized-inference ./inference-charts --values values-karpenter-optimized.yaml
-```
-
-### Deploy with Simple Topology Constraints
-
-For environments where strict constraints cause issues:
-
-```bash
-helm install simple-topology-inference ./inference-charts --values values-simple-topology.yaml
-```
-
-### Deploy with Single AZ Constraint
-
-For guaranteed single-AZ deployment with Karpenter:
-
-```bash
-# First, edit values-single-az.yaml to set your preferred AZ
-helm install single-az-inference ./inference-charts --values values-single-az.yaml
-```
-
 ## API Endpoints
 
 The deployed service exposes the following OpenAI-compatible API endpoints:
