@@ -31,17 +31,6 @@ vllm:
   logLevel: debug
   port: 8004
 
-rayOptions:
-  gcs:
-    highAvailability:
-      enabled: false
-      redis:
-        address: redis.redis
-        port: 6379
-        secretName: redis-secret
-        secretPasswordKey: redis-password
-        secretUsernameKey: redis-username
-
 modelParameters:
   modelId: NousResearch/Llama-3.2-1B
   gpuMemoryUtilization: 0.8
@@ -78,6 +67,14 @@ inference:
       actorAutoscaling:
         minActors: 1
         maxActors: 1
+    gcs:
+      highAvailability:
+        enabled: false
+        redis:
+          address: redis.redis
+          port: 6379
+          secretName:
+          secretPasswordKey:
     observability:
       rayPrometheusHost: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
       rayGrafanaHost: http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local

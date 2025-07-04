@@ -114,17 +114,13 @@ The chart provides configuration for various model parameters:
 
 For Ray-VLLM deployments, you can enable GCS (Global Control Store) high availability:
 
-| Parameter                                                           | Description                                              | Default |
-| ------------------------------------------------------------------- | -------------------------------------------------------- | ------- |
-| `inference.rayOptions.gcs.highAvailability.enabled`                 | Enable GCS high availability                             | `false` |
-| `inference.rayOptions.gcs.highAvailability.replicas`                | Number of GCS replicas                                   | `3`     |
-| `inference.rayOptions.gcs.highAvailability.redis.enabled`           | Use Redis for GCS state storage                          | `false` |
-| `inference.rayOptions.gcs.highAvailability.redis.connectionString`  | Redis connection string (leave empty for internal Redis) | `""`    |
-| `inference.rayOptions.gcs.highAvailability.redis.password`          | Redis password                                           | `""`    |
-| `inference.rayOptions.gcs.highAvailability.redis.connectionTimeout` | Redis connection timeout in seconds                      | `5`     |
-| `inference.rayOptions.gcs.highAvailability.redis.commandTimeout`    | Redis command timeout in seconds                         | `5`     |
-| `inference.rayOptions.gcs.server.persistence`                       | Enable GCS server persistence                            | `true`  |
-| `inference.rayOptions.gcs.server.checkpointInterval`                | GCS checkpoint interval in seconds                       | `10`    |
+| Parameter                                                           | Description                           | Default       |
+|---------------------------------------------------------------------|---------------------------------------|---------------|
+| `inference.rayOptions.gcs.highAvailability.enabled`                 | Enable GCS high availability          | `false`       |
+| `inference.rayOptions.gcs.highAvailability.redis.address`           | Address for redis                     | `redis.redis` |
+| `inference.rayOptions.gcs.highAvailability.redis.port`              | Port for redis                        | `6379`        |
+| `inference.rayOptions.gcs.highAvailability.redis.secretName`        | Secret name containing redis password | ``            |
+| `inference.rayOptions.gcs.highAvailability.redis.secretPasswordKey` | Key in secret with redis password     | ``            |
 
 ## Supported Models
 
@@ -392,7 +388,8 @@ The deployed service exposes the following OpenAI-compatible API endpoints:
 
 ## Ray GCS High Availability
 
-For production Ray-VLLM deployments, you can enable GCS (Global Control Store) high availability using the RayService CRD's native support to ensure fault tolerance and prevent single points of failure.
+For production Ray-VLLM deployments, you can enable GCS (Global Control Store) high availability using the RayService
+CRD's native support to ensure fault tolerance and prevent single points of failure.
 
 ### Features
 
@@ -406,6 +403,12 @@ For production Ray-VLLM deployments, you can enable GCS (Global Control Store) h
 
 The chart uses the RayService CRD's native GCS HA configuration:
 
+Create a secret for the redis password if needed (replace REDISPASSWORD with your password)
+
+```bash
+kubectl create secret generic redis-secret --from-literal=redis-password=REDISPASSWORD
+```
+
 ```yaml
 inference:
   framework: rayVllm
@@ -414,7 +417,7 @@ inference:
       highAvailability:
         enabled: true
         redis:
-          address: redis.redis
+          address: redis.redis # redis service in redis namespace
           port: 6379
           secretName: redis-secret
           secretPasswordKey: redis-password
@@ -425,17 +428,17 @@ inference:
 ### Common Issues
 
 1. **Redis Connection Issues**
-   - Check Redis service is running: `kubectl get pods -l app.kubernetes.io/component=redis-gcs`
-   - Verify Redis connectivity: `kubectl exec -it <ray-head-pod> -- redis-cli -h <redis-service> ping`
+    - Check Redis service is running: `kubectl get pods -l app.kubernetes.io/component=redis-gcs`
+    - Verify Redis connectivity: `kubectl exec -it <ray-head-pod> -- redis-cli -h <redis-service> ping`
 
 2. **GCS Recovery**
-   - Check RayService status: `kubectl get rayservice <service-name> -o yaml`
-   - Check GCS logs: `kubectl logs <ray-head-pod> -c head | grep -i gcs`
-   - Verify Redis contains GCS state: `kubectl exec -it <redis-pod> -- redis-cli keys "*"`
+    - Check RayService status: `kubectl get rayservice <service-name> -o yaml`
+    - Check GCS logs: `kubectl logs <ray-head-pod> -c head | grep -i gcs`
+    - Verify Redis contains GCS state: `kubectl exec -it <redis-pod> -- redis-cli keys "*"`
 
 3. **Performance Issues**
-   - Increase Redis resources if experiencing timeouts
-   - Monitor Redis memory usage
+    - Increase Redis resources if experiencing timeouts
+    - Monitor Redis memory usage
 
 ### Monitoring
 

@@ -17,17 +17,18 @@ spec:
     {{- if and .Values.inference.rayOptions.gcs.highAvailability.enabled }}
     # GCS High Availability Configuration using RayService CRD
     gcsFaultToleranceOptions:
-      redisAddress: {{ .Values.rayOptions.gcs.highAvailability.redis.address }}:{{ .Values.rayOptions.gcs.highAvailability.redis.port }}
+      redisAddress: "{{ .Values.inference.rayOptions.gcs.highAvailability.redis.address }}:{{ .Values.inference.rayOptions.gcs.highAvailability.redis.port }}"
+      {{- if and .Values.inference.rayOptions.gcs.highAvailability.redis.secretName .Values.inference.rayOptions.gcs.highAvailability.redis.secretPasswordKey}}
       redisPassword:
         valueFrom:
           secretKeyRef:
-            key: {{ .Values.rayOptions.gcs.highAvailability.redis.secretName }}
-            name: {{ .Values.rayOptions.gcs.highAvailability.redis.secretPasswordKey }}
+            key: {{ .Values.inference.rayOptions.gcs.highAvailability.redis.secretName }}
+            name: {{ .Values.inference.rayOptions.gcs.highAvailability.redis.secretPasswordKey }}
+      {{- end }}
     {{- end }}
     headGroupSpec:
       headService:
         metadata:
-          name: {{.Values.inference.serviceName}}
           namespace: {{.Values.inference.serviceNamespace}}
       rayStartParams:
         dashboard-host: 0.0.0.0
