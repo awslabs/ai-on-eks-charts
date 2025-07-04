@@ -66,6 +66,7 @@ The following table lists the configurable parameters of the inference-charts ch
 | `inference.modelServer.image.tag`                                        | Model server image tag                  | `latest`                                                                    |
 | `inference.modelServer.vllmVersion`                                      | VLLM version (for Ray deployments)      | Not set                                                                     |
 | `inference.modelServer.pythonVersion`                                    | Python version (for Ray deployments)    | Not set                                                                     |
+| `inference.modelServer.env`                                              | Custom environment variables            | `{}`                                                                        |
 | `inference.modelServer.deployment.replicas`                              | Number of replicas                      | `1`                                                                         |
 | `inference.modelServer.deployment.minReplicas`                           | Minimum number of replicas (for Ray)    | `1`                                                                         |
 | `inference.modelServer.deployment.maxReplicas`                           | Maximum number of replicas (for Ray)    | `2`                                                                         |
@@ -129,7 +130,7 @@ The chart includes pre-configured values files for the following models:
 ### GPU Models
 
 - **DeepSeek R1 Distill Llama 8B**: `values-deepseek-r1-distill-llama-8b-ray-vllm-gpu.yaml` (Ray-VLLM)
-- **Llama 3.2 1B**: `values-llama-32-1b-vllm.yaml` (VLLM) and `values-llama-32-1b-ray-vllm.yaml` (Ray-VLLM)
+- **Llama 3.2 1B**: `values-llama-32-1b-vllm.yaml` (VLLM), `values-llama-32-1b-ray-vllm.yaml` (Ray-VLLM), `values-llama-32-1b-ray-vllm-autoscaling.yaml` (Ray-VLLM with autoscaling), and `values-llama-32-1b-ray-vllm-redis.yaml` (Ray-VLLM with Redis)
 - **Llama 4 Scout 17B**: `values-llama-4-scout-17b-vllm.yaml` (VLLM)
 - **Mistral Small 24B**: `values-mistral-small-24b-ray-vllm.yaml` (Ray-VLLM)
 
@@ -138,8 +139,7 @@ The chart includes pre-configured values files for the following models:
 - **DeepSeek R1 Distill Llama 8B**: `values-deepseek-r1-distill-llama-8b-vllm-neuron.yaml` (VLLM)
 - **Llama 2 13B**: `values-llama-2-13b-ray-vllm-neuron.yaml` (Ray-VLLM)
 - **Llama 3 70B**: `values-llama-3-70b-ray-vllm-neuron.yaml` (Ray-VLLM)
-- **Llama 3.1 8B**: `values-llama-31-8b-vllm-neuron.yaml` (VLLM) and `values-llama-31-8b-ray-vllm-neuron.yaml` (
-  Ray-VLLM)
+- **Llama 3.1 8B**: `values-llama-31-8b-vllm-neuron.yaml` (VLLM) and `values-llama-31-8b-ray-vllm-neuron.yaml` (Ray-VLLM)
 
 ## Topology Spread Constraints
 
@@ -316,6 +316,18 @@ helm install neuron-ray-vllm-inference ./inference-charts --values values-llama-
 helm install gpu-ray-vllm-mistral ./inference-charts --values values-mistral-small-24b-ray-vllm.yaml
 ```
 
+### Deploy GPU Ray-VLLM with Llama 3.2 1B model with autoscaling
+
+```bash
+helm install gpu-ray-vllm-autoscale ./inference-charts --values values-llama-32-1b-ray-vllm-autoscaling.yaml
+```
+
+### Deploy GPU Ray-VLLM with Llama 3.2 1B model with Redis GCS HA
+
+```bash
+helm install gpu-ray-vllm-redis ./inference-charts --values values-llama-32-1b-ray-vllm-redis.yaml
+```
+
 ### Custom Deployment
 
 You can also create your own values file with custom settings:
@@ -346,6 +358,9 @@ inference:
     image:
       repository: vllm/vllm-openai
       tag: latest
+    # For Ray deployments, specify VLLM and Python versions
+    vllmVersion: 0.9.1
+    pythonVersion: 3.11
     deployment:
       replicas: 1
       minReplicas: 1
@@ -356,6 +371,7 @@ inference:
             nvidia.com/gpu: 1
           limits:
             nvidia.com/gpu: 1
+    env: {}  # Custom environment variables
 
 modelParameters:
   modelId: "NousResearch/Llama-3.2-1B"

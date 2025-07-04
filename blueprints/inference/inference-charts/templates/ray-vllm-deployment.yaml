@@ -22,8 +22,8 @@ spec:
       redisPassword:
         valueFrom:
           secretKeyRef:
-            key: {{ .Values.inference.rayOptions.gcs.highAvailability.redis.secretName }}
-            name: {{ .Values.inference.rayOptions.gcs.highAvailability.redis.secretPasswordKey }}
+            name: {{ .Values.inference.rayOptions.gcs.highAvailability.redis.secretName }}
+            key: {{ .Values.inference.rayOptions.gcs.highAvailability.redis.secretPasswordKey }}
       {{- end }}
     {{- end }}
     headGroupSpec:
