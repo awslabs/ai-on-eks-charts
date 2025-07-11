@@ -11,8 +11,10 @@ The chart supports the following deployment types:
 
 - GPU-based VLLM deployments
 - GPU-based Ray-VLLM deployments
+- GPU-based Triton-VLLM deployments
 - Neuron-based VLLM deployments
 - Neuron-based Ray-VLLM deployments
+- Neuron-based Triton-VLLM deployments
 
 ### VLLM vs Ray-VLLM
 
@@ -31,6 +33,15 @@ The chart supports the following deployment types:
 - Supports autoscaling and distributed workloads
 - Includes observability integration with Prometheus and Grafana
 - Requires additional parameters: `rayVersion`, `vllmVersion`, `pythonVersion`
+
+**Triton-VLLM Deployments** (`framework: triton-vllm`):
+
+- VLLM deployed as a backend for NVIDIA Triton Inference Server
+- Production-ready inference server with advanced features
+- Uses `nvcr.io/nvidia/tritonserver` image for GPU or `public.ecr.aws/neuron/tritonserver` for Neuron
+- Supports both HTTP and gRPC protocols
+- Includes health checks, metrics, and model repository management
+- Compatible with both GPU and AWS Neuron accelerators (Soon)
 
 ## Prerequisites
 
@@ -58,7 +69,7 @@ The following table lists the configurable parameters of the inference-charts ch
 |--------------------------------------------------------------------------|-----------------------------------------|-----------------------------------------------------------------------------|
 | `global.image.pullPolicy`                                                | Global image pull policy                | `IfNotPresent`                                                              |
 | `inference.accelerator`                                                  | Accelerator type to use (gpu or neuron) | `gpu`                                                                       |
-| `inference.framework`                                                    | Framework type to use (vllm or rayVllm) | `vllm`                                                                      |
+| `inference.framework`                                                    | Framework type to use (vllm, rayVllm, or triton-vllm) | `vllm`                                                                      |
 | `inference.serviceName`                                                  | Name of the inference service           | `inference`                                                                 |
 | `inference.serviceNamespace`                                             | Namespace for the inference service     | `default`                                                                   |
 | `inference.modelServer.image.repository`                                 | Model server image repository           | `vllm/vllm-openai`                                                          |
@@ -303,6 +314,12 @@ helm install neuron-ray-vllm-inference ./inference-charts --values values-llama-
 helm install gpu-ray-vllm-mistral ./inference-charts --values values-mistral-small-24b-ray-vllm.yaml
 ```
 
+### Deploy GPU Triton-VLLM
+
+```bash
+helm install gpu-triton-vllm ./inference-charts --values values-triton-vllm-gpu.yaml
+```
+
 ### Custom Deployment
 
 You can also create your own values file with custom settings:
@@ -310,7 +327,7 @@ You can also create your own values file with custom settings:
 ```yaml
 inference:
   accelerator: gpu  # or neuron
-  framework: vllm   # or rayVllm
+  framework: vllm   # or rayVllm or triton-vllm
   serviceName: custom-inference
   serviceNamespace: default
 
@@ -366,12 +383,42 @@ helm install custom-inference ./inference-charts --values custom-values.yaml
 
 ## API Endpoints
 
+### VLLM and Ray-VLLM Deployments
+
 The deployed service exposes the following OpenAI-compatible API endpoints:
 
 - `/v1/models` - List available models
 - `/v1/completions` - Text completion API
 - `/v1/chat/completions` - Chat completion API
 - `/metrics` - Prometheus metrics endpoint
+
+### Triton-VLLM Deployments
+
+The deployed service exposes the following Triton Inference Server API endpoints:
+
+**HTTP API (Port 8000):**
+- `/v2/health/live` - Liveness check
+- `/v2/health/ready` - Readiness check
+- `/v2/models` - List available models
+- `/v2/models/vllm_model/generate` - Model inference endpoint
+
+**gRPC API (Port 8001):**
+- Standard Triton gRPC inference protocol
+
+**Metrics (Port 8002):**
+- `/metrics` - Prometheus metrics endpoint
+
+**Example Triton API Usage:**
+
+```bash
+# Check model status
+curl http://localhost:8000/v2/models/llama-3-2-1b
+
+# Run inference
+curl -X POST http://localhost:8000/v2/models/vllm_model/generate \
+  -H 'Content-Type: application/json' \
+  -d '{"text_input":"what is the capital of France?"}'
+```
 
 ## Observability
 
