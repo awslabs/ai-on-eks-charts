@@ -14,7 +14,7 @@ The chart supports the following deployment types:
 - GPU-based Triton-VLLM deployments
 - Neuron-based VLLM deployments
 - Neuron-based Ray-VLLM deployments
-- Neuron-based Triton-VLLM deployments
+- Neuron-based Triton-VLLM deployments (Coming Soon)
 
 ### VLLM vs Ray-VLLM
 
