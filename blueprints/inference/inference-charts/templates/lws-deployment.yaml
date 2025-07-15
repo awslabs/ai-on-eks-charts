@@ -14,6 +14,10 @@ spec:
         labels:
           role: leader
       spec:
+        {{- if .Values.inference.modelServer.deployment.instanceType }}
+        nodeSelector:
+          beta.kubernetes.io/instance-type: {{ .Values.inference.modelServer.deployment.instanceType }}
+        {{- end }}
         containers:
           - name: vllm-leader
             image: {{.Values.inference.modelServer.image.repository}}:{{.Values.inference.modelServer.image.tag}}
@@ -56,6 +60,10 @@ spec:
               sizeLimit: 15Gi
     workerTemplate:
       spec:
+        {{- if .Values.inference.modelServer.deployment.instanceType }}
+        nodeSelector:
+          beta.kubernetes.io/instance-type: {{ .Values.inference.modelServer.deployment.instanceType }}
+        {{- end }}
         containers:
           - name: vllm-worker
             image: {{.Values.inference.modelServer.image.repository}}:{{.Values.inference.modelServer.image.tag}}
