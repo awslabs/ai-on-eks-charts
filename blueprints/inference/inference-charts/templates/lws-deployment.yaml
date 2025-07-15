@@ -4,6 +4,10 @@ kind: LeaderWorkerSet
 metadata:
   name: {{.Values.inference.serviceName}}
   namespace: {{.Values.inference.serviceNamespace}}
+  annotations:
+    {{- if .Values.inference.modelServer.deployment.topologySpreadConstraints.enabled }}
+    leaderworkerset.sigs.k8s.io/exclusive-topology: "topology.kubernetes.io/zone"
+    {{- end }}
 spec:
   replicas: {{.Values.inference.modelServer.deployment.replicas}}
   leaderWorkerTemplate:
