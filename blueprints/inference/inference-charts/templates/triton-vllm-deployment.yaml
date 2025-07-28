@@ -1,4 +1,4 @@
-{{- if or (eq .Values.inference.framework "vllm") (eq .Values.inference.framework "aibrix") }}
+{{- if eq .Values.inference.framework "triton-vllm" }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -6,32 +6,30 @@ metadata:
   namespace: {{.Values.inference.serviceNamespace}}
   labels:
     "app.kubernetes.io/component": "{{.Values.inference.serviceName}}"
-    {{- if eq .Values.inference.framework "aibrix" }}
-    model.aibrix.ai/name: "{{.Values.inference.serviceName}}"
-    {{- end }}
 spec:
   replicas: {{ .Values.inference.modelServer.deployment.replicas }}
   selector:
     matchLabels:
       "app.kubernetes.io/component": "{{.Values.inference.serviceName}}"
-      {{- if eq .Values.inference.framework "aibrix" }}
-      model.aibrix.ai/name: "{{.Values.inference.serviceName}}"
-      {{- end }}
   template:
     metadata:
       labels:
         "app.kubernetes.io/component": "{{.Values.inference.serviceName}}"
-        {{- if eq .Values.inference.framework "aibrix" }}
-        model.aibrix.ai/name: "{{.Values.inference.serviceName}}"
-        {{- end }}
     spec:
       containers:
-        - name: vllm
+        - name: triton-vllm
           image: "{{ .Values.inference.modelServer.image.repository }}:{{ .Values.inference.modelServer.image.tag }}"
           imagePullPolicy: {{ .Values.global.image.pullPolicy }}
-          command: ["/bin/sh", "-c"]
+          command: ["tritonserver"]
           args: [
-            "python3 /vllm-workspace/vllm_serve.py"
+            "--model-repository=/models",
+            "--grpc-port=8001",
+            "--http-port=8000",
+            "--metrics-port=8002",
+            "--allow-grpc=true",
+            "--allow-http=true",
+            "--allow-metrics=true",
+            "--log-verbose=1"
           ]
           env:
             {{- if .Values.modelParameters }}
@@ -39,10 +37,6 @@ spec:
             - name: {{ $key | snakecase | upper }}
               value: "{{ $value }}"
             {{- end }}
-            {{- end }}
-            {{- if eq .Values.inference.framework "aibrix" }}
-            - name: SERVED_MODEL_NAME
-              value: "{{.Values.inference.serviceName}}"
             {{- end }}
             - name: HUGGING_FACE_HUB_TOKEN
               valueFrom:
@@ -52,24 +46,31 @@ spec:
           ports:
             - containerPort: 8000
               name: http
+            - containerPort: 8001
+              name: grpc
+            - containerPort: 8002
+              name: metrics
+          livenessProbe:
+            httpGet:
+              path: /v2/health/live
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /v2/health/ready
+              port: http
+            initialDelaySeconds: 55
+            periodSeconds: 5
           resources:
             {{- if eq .Values.inference.accelerator "gpu" }}
             {{- toYaml .Values.inference.modelServer.deployment.resources.gpu | nindent 12 }}
-            {{- else }}
-            {{- toYaml .Values.inference.modelServer.deployment.resources.neuron | nindent 12 }}
             {{- end }}
           volumeMounts:
-            - mountPath: /vllm-workspace/vllm_serve.py
-              subPath: vllm_serve.py
-              name: vllm-script
+            - mountPath: /models/vllm_model
+              name: model-repository
             - mountPath: /dev/shm
               name: dshm
-      {{- if eq .Values.inference.accelerator "neuron" }}
-      tolerations:
-        - key: "aws.amazon.com/neuron"
-          operator: "Exists"
-          effect: "NoSchedule"
-      {{- end }}
       {{- if .Values.inference.modelServer.deployment.instanceType }}
       nodeSelector:
         beta.kubernetes.io/instance-type: {{ .Values.inference.modelServer.deployment.instanceType }}
@@ -82,9 +83,6 @@ spec:
           labelSelector:
             matchLabels:
               "app.kubernetes.io/component": "{{$.Values.inference.serviceName}}"
-              {{- if eq .Values.inference.framework "aibrix" }}
-              model.aibrix.ai/name: "{{.Values.inference.serviceName}}"
-              {{- end }}
       {{- end }}
       {{- if and .Values.inference.modelServer.deployment.podAffinity.enabled .Values.inference.modelServer.deployment.podAffinity.preferredDuringSchedulingIgnoredDuringExecution }}
       affinity:
@@ -94,17 +92,16 @@ spec:
               labelSelector:
                 matchLabels:
                   "app.kubernetes.io/component": "{{$.Values.inference.serviceName}}"
-                  {{- if eq .Values.inference.framework "aibrix" }}
-                  model.aibrix.ai/name: "{{.Values.inference.serviceName}}"
-                  {{- end }}
       {{- end }}
       volumes:
         - configMap:
+            name: triton-model-repository
             items:
-              - key: vllm_serve.py
-                path: vllm_serve.py
-            name: vllm-serve
-          name: vllm-script
+              - key: config.pbtxt
+                path: config.pbtxt
+              - key: model.json
+                path: ./1/model.json
+          name: model-repository
         - name: dshm
           emptyDir:
             medium: Memory
@@ -125,9 +122,14 @@ spec:
       targetPort: http
       protocol: TCP
       name: http
+    - port: 8001
+      targetPort: grpc
+      protocol: TCP
+      name: grpc
+    - port: 8002
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
   selector:
     "app.kubernetes.io/component": "{{.Values.inference.serviceName}}"
-    {{- if eq .Values.inference.framework "aibrix" }}
-    model.aibrix.ai/name: "{{.Values.inference.serviceName}}"
-    {{- end }}
 {{- end }}
