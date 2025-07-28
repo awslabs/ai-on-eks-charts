@@ -52,7 +52,7 @@ inference:
   # Accelerator type: gpu or neuron
   accelerator: gpu
 
-  # Framework type: vllm or rayVllm
+  # Framework type: vllm, rayVllm, or triton-vllm
   framework: vllm
 
   #Ray Specific Options
