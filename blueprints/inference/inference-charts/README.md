@@ -14,6 +14,7 @@ The chart supports the following deployment types:
 - GPU-based AIBrix deployments
 - Neuron-based VLLM deployments
 - Neuron-based Ray-VLLM deployments
+- Ray-VLLM deployments with (optional) GCS High Availability
 
 ### VLLM vs Ray-VLLM
 
@@ -64,39 +65,40 @@ kubectl create secret generic hf-token --from-literal=token=your_huggingface_tok
 
 The following table lists the configurable parameters of the inference-charts chart and their default values.
 
-| Parameter                                                                | Description                                      | Default                                                                     |
-| ------------------------------------------------------------------------ | ------------------------------------------------ | --------------------------------------------------------------------------- |
-| `global.image.pullPolicy`                                                | Global image pull policy                         | `IfNotPresent`                                                              |
-| `inference.accelerator`                                                  | Accelerator type to use (gpu or neuron)          | `gpu`                                                                       |
-| `inference.framework`                                                    | Framework type to use (vllm, rayVllm, or aibrix) | `vllm`                                                                      |
-| `inference.serviceName`                                                  | Name of the inference service                    | `inference`                                                                 |
-| `inference.serviceNamespace`                                             | Namespace for the inference service              | `default`                                                                   |
-| `inference.modelServer.image.repository`                                 | Model server image repository                    | `vllm/vllm-openai`                                                          |
-| `inference.modelServer.image.tag`                                        | Model server image tag                           | `latest`                                                                    |
-| `inference.modelServer.vllmVersion`                                      | VLLM version (for Ray deployments)               | Not set                                                                     |
-| `inference.modelServer.pythonVersion`                                    | Python version (for Ray deployments)             | Not set                                                                     |
-| `inference.modelServer.deployment.replicas`                              | Number of replicas                               | `1`                                                                         |
-| `inference.modelServer.deployment.minReplicas`                           | Minimum number of replicas (for Ray)             | `1`                                                                         |
-| `inference.modelServer.deployment.maxReplicas`                           | Maximum number of replicas (for Ray)             | `2`                                                                         |
-| `inference.modelServer.deployment.instanceType`                          | Node selector for instance type                  | Not set                                                                     |
-| `inference.modelServer.deployment.topologySpreadConstraints.enabled`     | Enable topology spread constraints               | `true`                                                                      |
-| `inference.modelServer.deployment.topologySpreadConstraints.constraints` | List of topology spread constraints              | See default configuration                                                   |
-| `inference.modelServer.deployment.podAffinity.enabled`                   | Enable pod affinity                              | `true`                                                                      |
-| `inference.rayOptions.rayVersion`                                        | Ray version to use                               | `2.47.0`                                                                    |
-| `inference.rayOptions.autoscaling.enabled`                               | Enable Ray native autoscaling                    | `false`                                                                     |
-| `inference.rayOptions.autoscaling.upscalingMode`                         | Ray autoscaler upscaling mode                    | `Default`                                                                   |
-| `inference.rayOptions.autoscaling.idleTimeoutSeconds`                    | Idle timeout before scaling down                 | `60`                                                                        |
-| `inference.rayOptions.autoscaling.actorAutoscaling.minActors`            | Minimum number of actors                         | `1`                                                                         |
-| `inference.rayOptions.autoscaling.actorAutoscaling.maxActors`            | Maximum number of actors                         | `1`                                                                         |
-| `inference.rayOptions.observability.rayPrometheusHost`                   | Ray Prometheus host URL                          | `http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090` |
-| `inference.rayOptions.observability.rayGrafanaHost`                      | Ray Grafana host URL                             | `http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local`         |
-| `inference.rayOptions.observability.rayGrafanaIframeHost`                | Ray Grafana iframe host URL                      | `http://localhost:3000`                                                     |
-| `vllm.logLevel`                                                          | Log level for VLLM                               | `debug`                                                                     |
-| `vllm.port`                                                              | VLLM server port                                 | `8004`                                                                      |
-| `service.type`                                                           | Service type                                     | `ClusterIP`                                                                 |
-| `service.port`                                                           | Service port                                     | `8000`                                                                      |
-| `fluentbit.image.repository`                                             | Fluent Bit image repository                      | `fluent/fluent-bit`                                                         |
-| `fluentbit.image.tag`                                                    | Fluent Bit image tag                             | `3.2.2`                                                                     |
+| Parameter                                                                | Description                             | Default                                                                     |
+|--------------------------------------------------------------------------|-----------------------------------------|-----------------------------------------------------------------------------|
+| `global.image.pullPolicy`                                                | Global image pull policy                | `IfNotPresent`                                                              |
+| `inference.accelerator`                                                  | Accelerator type to use (gpu or neuron) | `gpu`                                                                       |
+| `inference.framework`                                                    | Framework type to use (vllm or rayVllm) | `vllm`                                                                      |
+| `inference.serviceName`                                                  | Name of the inference service           | `inference`                                                                 |
+| `inference.serviceNamespace`                                             | Namespace for the inference service     | `default`                                                                   |
+| `inference.modelServer.image.repository`                                 | Model server image repository           | `vllm/vllm-openai`                                                          |
+| `inference.modelServer.image.tag`                                        | Model server image tag                  | `latest`                                                                    |
+| `inference.modelServer.vllmVersion`                                      | VLLM version (for Ray deployments)      | Not set                                                                     |
+| `inference.modelServer.pythonVersion`                                    | Python version (for Ray deployments)    | Not set                                                                     |
+| `inference.modelServer.env`                                              | Custom environment variables            | `{}`                                                                        |
+| `inference.modelServer.deployment.replicas`                              | Number of replicas                      | `1`                                                                         |
+| `inference.modelServer.deployment.minReplicas`                           | Minimum number of replicas (for Ray)    | `1`                                                                         |
+| `inference.modelServer.deployment.maxReplicas`                           | Maximum number of replicas (for Ray)    | `2`                                                                         |
+| `inference.modelServer.deployment.instanceType`                          | Node selector for instance type         | Not set                                                                     |
+| `inference.modelServer.deployment.topologySpreadConstraints.enabled`     | Enable topology spread constraints      | `true`                                                                      |
+| `inference.modelServer.deployment.topologySpreadConstraints.constraints` | List of topology spread constraints     | See default configuration                                                   |
+| `inference.modelServer.deployment.podAffinity.enabled`                   | Enable pod affinity                     | `true`                                                                      |
+| `inference.rayOptions.rayVersion`                                        | Ray version to use                      | `2.47.0`                                                                    |
+| `inference.rayOptions.autoscaling.enabled`                               | Enable Ray native autoscaling           | `false`                                                                     |
+| `inference.rayOptions.autoscaling.upscalingMode`                         | Ray autoscaler upscaling mode           | `Default`                                                                   |
+| `inference.rayOptions.autoscaling.idleTimeoutSeconds`                    | Idle timeout before scaling down        | `60`                                                                        |
+| `inference.rayOptions.autoscaling.actorAutoscaling.minActors`            | Minimum number of actors                | `1`                                                                         |
+| `inference.rayOptions.autoscaling.actorAutoscaling.maxActors`            | Maximum number of actors                | `1`                                                                         |
+| `inference.rayOptions.observability.rayPrometheusHost`                   | Ray Prometheus host URL                 | `http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090` |
+| `inference.rayOptions.observability.rayGrafanaHost`                      | Ray Grafana host URL                    | `http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local`         |
+| `inference.rayOptions.observability.rayGrafanaIframeHost`                | Ray Grafana iframe host URL             | `http://localhost:3000`                                                     |
+| `vllm.logLevel`                                                          | Log level for VLLM                      | `debug`                                                                     |
+| `vllm.port`                                                              | VLLM server port                        | `8004`                                                                      |
+| `service.type`                                                           | Service type                            | `ClusterIP`                                                                 |
+| `service.port`                                                           | Service port                            | `8000`                                                                      |
+| `fluentbit.image.repository`                                             | Fluent Bit image repository             | `fluent/fluent-bit`                                                         |
+| `fluentbit.image.tag`                                                    | Fluent Bit image tag                    | `3.2.2`                                                                     |
 
 ### Model Parameters
 
@@ -119,6 +121,18 @@ The chart provides configuration for various model parameters:
 **Note**: Model parameters are automatically converted to environment variables in SCREAMING_SNAKE_CASE format (e.g.,
 `modelId` becomes `MODEL_ID`, `maxNumSeqs` becomes `MAX_NUM_SEQS`).
 
+### Ray GCS High Availability Parameters
+
+For Ray-VLLM deployments, you can enable GCS (Global Control Store) high availability:
+
+| Parameter                                                           | Description                           | Default       |
+|---------------------------------------------------------------------|---------------------------------------|---------------|
+| `inference.rayOptions.gcs.highAvailability.enabled`                 | Enable GCS high availability          | `false`       |
+| `inference.rayOptions.gcs.highAvailability.redis.address`           | Address for redis                     | `redis.redis` |
+| `inference.rayOptions.gcs.highAvailability.redis.port`              | Port for redis                        | `6379`        |
+| `inference.rayOptions.gcs.highAvailability.redis.secretName`        | Secret name containing redis password | ``            |
+| `inference.rayOptions.gcs.highAvailability.redis.secretPasswordKey` | Key in secret with redis password     | ``            |
+
 ## Supported Models
 
 The chart includes pre-configured values files for the following models:
@@ -126,7 +140,7 @@ The chart includes pre-configured values files for the following models:
 ### GPU Models
 
 - **DeepSeek R1 Distill Llama 8B**: `values-deepseek-r1-distill-llama-8b-ray-vllm-gpu.yaml` (Ray-VLLM)
-- **Llama 3.2 1B**: `values-llama-32-1b-vllm.yaml` (VLLM), `values-llama-32-1b-ray-vllm.yaml` (Ray-VLLM), `values-llama-32-1b-aibrix.yaml` (AIBrix)
+- **Llama 3.2 1B**: `values-llama-32-1b-vllm.yaml` (VLLM), `values-llama-32-1b-ray-vllm.yaml` (Ray-VLLM), `values-llama-32-1b-ray-vllm-autoscaling.yaml` (Ray-VLLM with autoscaling), and `values-llama-32-1b-ray-vllm-redis.yaml` (Ray-VLLM with Redis), `values-llama-32-1b-aibrix.yaml` (AIBrix)
 - **Llama 4 Scout 17B**: `values-llama-4-scout-17b-vllm.yaml` (VLLM)
 - **Mistral Small 24B**: `values-mistral-small-24b-ray-vllm.yaml` (Ray-VLLM)
 
@@ -318,6 +332,18 @@ helm install neuron-ray-vllm-inference ./inference-charts --values values-llama-
 helm install gpu-ray-vllm-mistral ./inference-charts --values values-mistral-small-24b-ray-vllm.yaml
 ```
 
+### Deploy GPU Ray-VLLM with Llama 3.2 1B model with autoscaling
+
+```bash
+helm install gpu-ray-vllm-autoscale ./inference-charts --values values-llama-32-1b-ray-vllm-autoscaling.yaml
+```
+
+### Deploy GPU Ray-VLLM with Llama 3.2 1B model with Redis GCS HA
+
+```bash
+helm install gpu-ray-vllm-redis ./inference-charts --values values-llama-32-1b-ray-vllm-redis.yaml
+```
+
 ### Custom Deployment
 
 You can also create your own values file with custom settings:
@@ -351,6 +377,9 @@ inference:
     image:
       repository: vllm/vllm-openai  # Use rayproject/ray for Ray deployments
       tag: latest
+    # For Ray deployments, specify VLLM and Python versions
+    vllmVersion: 0.9.1
+    pythonVersion: 3.11
     deployment:
       replicas: 1
       minReplicas: 1
@@ -361,6 +390,7 @@ inference:
             nvidia.com/gpu: 1
           limits:
             nvidia.com/gpu: 1
+    env: {}  # Custom environment variables
 
 modelParameters:
   modelId: "NousResearch/Llama-3.2-1B"
@@ -390,6 +420,66 @@ The deployed service exposes the following OpenAI-compatible API endpoints:
 - `/v1/completions` - Text completion API
 - `/v1/chat/completions` - Chat completion API
 - `/metrics` - Prometheus metrics endpoint
+
+## Ray GCS High Availability
+
+For production Ray-VLLM deployments, you can enable GCS (Global Control Store) high availability using the RayService
+CRD's native support to ensure fault tolerance and prevent single points of failure.
+
+### Features
+
+- **Native CRD Support**: Uses RayService CRD's built-in GCS HA configuration
+- **Fault Tolerance**: GCS state is persisted to Redis, allowing recovery from head node failures
+- **Automatic Recovery**: Ray cluster can recover from GCS failures without losing job state
+- **Scalability**: Multiple GCS replicas can handle increased load
+- **Flexible Storage**: Support for both internal Redis (deployed with the chart) and external Redis clusters
+
+### Example Configuration
+
+The chart uses the RayService CRD's native GCS HA configuration:
+
+Create a secret for the redis password if needed (replace REDISPASSWORD with your password)
+
+```bash
+kubectl create secret generic redis-secret --from-literal=redis-password=REDISPASSWORD
+```
+
+```yaml
+inference:
+  framework: rayVllm
+  rayOptions:
+    gcs:
+      highAvailability:
+        enabled: true
+        redis:
+          address: redis.redis # redis service in redis namespace
+          port: 6379
+          secretName: redis-secret
+          secretPasswordKey: redis-password
+```
+
+## Troubleshooting GCS High Availability
+
+### Common Issues
+
+1. **Redis Connection Issues**
+    - Check Redis service is running: `kubectl get pods -l app.kubernetes.io/component=redis-gcs`
+    - Verify Redis connectivity: `kubectl exec -it <ray-head-pod> -- redis-cli -h <redis-service> ping`
+
+2. **GCS Recovery**
+    - Check RayService status: `kubectl get rayservice <service-name> -o yaml`
+    - Check GCS logs: `kubectl logs <ray-head-pod> -c head | grep -i gcs`
+    - Verify Redis contains GCS state: `kubectl exec -it <redis-pod> -- redis-cli keys "*"`
+
+3. **Performance Issues**
+    - Increase Redis resources if experiencing timeouts
+    - Monitor Redis memory usage
+
+### Monitoring
+
+- GCS metrics are available at `/metrics` endpoint
+- Redis metrics can be monitored using Redis Exporter
+- Ray dashboard shows cluster health and GCS status
 
 ## Observability
 
