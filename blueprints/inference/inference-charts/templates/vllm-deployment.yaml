@@ -1,4 +1,4 @@
-{{- if eq .Values.inference.framework "vllm" }}
+{{- if or (eq .Values.inference.framework "vllm") (eq .Values.inference.framework "aibrix") }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -6,15 +6,24 @@ metadata:
   namespace: {{.Values.inference.serviceNamespace}}
   labels:
     "app.kubernetes.io/component": "{{.Values.inference.serviceName}}"
+    {{- if eq .Values.inference.framework "aibrix" }}
+    model.aibrix.ai/name: "{{.Values.inference.serviceName}}"
+    {{- end }}
 spec:
   replicas: {{ .Values.inference.modelServer.deployment.replicas }}
   selector:
     matchLabels:
       "app.kubernetes.io/component": "{{.Values.inference.serviceName}}"
+      {{- if eq .Values.inference.framework "aibrix" }}
+      model.aibrix.ai/name: "{{.Values.inference.serviceName}}"
+      {{- end }}
   template:
     metadata:
       labels:
         "app.kubernetes.io/component": "{{.Values.inference.serviceName}}"
+        {{- if eq .Values.inference.framework "aibrix" }}
+        model.aibrix.ai/name: "{{.Values.inference.serviceName}}"
+        {{- end }}
     spec:
       containers:
         - name: vllm
@@ -30,6 +39,10 @@ spec:
             - name: {{ $key | snakecase | upper }}
               value: "{{ $value }}"
             {{- end }}
+            {{- end }}
+            {{- if eq .Values.inference.framework "aibrix" }}
+            - name: SERVED_MODEL_NAME
+              value: "{{.Values.inference.serviceName}}"
             {{- end }}
             - name: HUGGING_FACE_HUB_TOKEN
               valueFrom:
@@ -69,6 +82,9 @@ spec:
           labelSelector:
             matchLabels:
               "app.kubernetes.io/component": "{{$.Values.inference.serviceName}}"
+              {{- if eq .Values.inference.framework "aibrix" }}
+              model.aibrix.ai/name: "{{.Values.inference.serviceName}}"
+              {{- end }}
       {{- end }}
       {{- if and .Values.inference.modelServer.deployment.podAffinity.enabled .Values.inference.modelServer.deployment.podAffinity.preferredDuringSchedulingIgnoredDuringExecution }}
       affinity:
@@ -78,6 +94,9 @@ spec:
               labelSelector:
                 matchLabels:
                   "app.kubernetes.io/component": "{{$.Values.inference.serviceName}}"
+                  {{- if eq .Values.inference.framework "aibrix" }}
+                  model.aibrix.ai/name: "{{.Values.inference.serviceName}}"
+                  {{- end }}
       {{- end }}
       volumes:
         - configMap:
@@ -108,4 +127,7 @@ spec:
       name: http
   selector:
     "app.kubernetes.io/component": "{{.Values.inference.serviceName}}"
+    {{- if eq .Values.inference.framework "aibrix" }}
+    model.aibrix.ai/name: "{{.Values.inference.serviceName}}"
+    {{- end }}
 {{- end }}

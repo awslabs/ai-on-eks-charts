@@ -11,9 +11,10 @@ The chart supports the following deployment types:
 
 - GPU-based VLLM deployments
 - GPU-based Ray-VLLM deployments
+- GPU-based AIBrix deployments
 - Neuron-based VLLM deployments
 - Neuron-based Ray-VLLM deployments
-- Ray-VLLM deployments with GCS High Availability
+- Ray-VLLM deployments with (optional) GCS High Availability
 
 ### VLLM vs Ray-VLLM
 
@@ -33,6 +34,13 @@ The chart supports the following deployment types:
 - Includes observability integration with Prometheus and Grafana
 - Requires additional parameters: `rayVersion`, `vllmVersion`, `pythonVersion`
 
+**AIBrix Deployments** (`framework: aibrix`):
+
+- VLLM deployment with AIBrix-specific configurations
+- Uses `vllm/vllm-openai` image
+- Includes additional model labels for AIBrix integration
+- Suitable for AIBrix-managed inference workloads
+
 ## Prerequisites
 
 - Kubernetes cluster with GPU or AWS Neuron nodes
@@ -40,6 +48,8 @@ The chart supports the following deployment types:
 - For GPU deployments: NVIDIA device plugin installed
 - For Neuron deployments: AWS Neuron device plugin installed
 - Hugging Face Hub token (stored as a Kubernetes secret named `hf-token`)
+- For Ray: KubeRay Infrastructure
+- For AIBrix: AIBrix Infrastructure
 
 ## Installation
 
@@ -95,7 +105,7 @@ The following table lists the configurable parameters of the inference-charts ch
 The chart provides configuration for various model parameters:
 
 | Parameter                                   | Description                      | Default                     |
-|---------------------------------------------|----------------------------------|-----------------------------|
+| ------------------------------------------- | -------------------------------- | --------------------------- |
 | `modelParameters.modelId`                   | Model ID from Hugging Face Hub   | `NousResearch/Llama-3.2-1B` |
 | `modelParameters.gpuMemoryUtilization`      | GPU memory utilization           | `0.8`                       |
 | `modelParameters.maxModelLen`               | Maximum model sequence length    | `8192`                      |
@@ -130,7 +140,7 @@ The chart includes pre-configured values files for the following models:
 ### GPU Models
 
 - **DeepSeek R1 Distill Llama 8B**: `values-deepseek-r1-distill-llama-8b-ray-vllm-gpu.yaml` (Ray-VLLM)
-- **Llama 3.2 1B**: `values-llama-32-1b-vllm.yaml` (VLLM), `values-llama-32-1b-ray-vllm.yaml` (Ray-VLLM), `values-llama-32-1b-ray-vllm-autoscaling.yaml` (Ray-VLLM with autoscaling), and `values-llama-32-1b-ray-vllm-redis.yaml` (Ray-VLLM with Redis)
+- **Llama 3.2 1B**: `values-llama-32-1b-vllm.yaml` (VLLM), `values-llama-32-1b-ray-vllm.yaml` (Ray-VLLM), `values-llama-32-1b-ray-vllm-autoscaling.yaml` (Ray-VLLM with autoscaling), and `values-llama-32-1b-ray-vllm-redis.yaml` (Ray-VLLM with Redis), `values-llama-32-1b-aibrix.yaml` (AIBrix)
 - **Llama 4 Scout 17B**: `values-llama-4-scout-17b-vllm.yaml` (VLLM)
 - **Mistral Small 24B**: `values-mistral-small-24b-ray-vllm.yaml` (Ray-VLLM)
 
@@ -238,7 +248,7 @@ on workload demand. This is more efficient than Kubernetes HPA as it understands
 ### Autoscaling Configuration
 
 | Parameter                                                     | Description                                     | Default   |
-|---------------------------------------------------------------|-------------------------------------------------|-----------|
+| ------------------------------------------------------------- | ----------------------------------------------- | --------- |
 | `inference.rayOptions.autoscaling.enabled`                    | Enable Ray native autoscaling                   | `false`   |
 | `inference.rayOptions.autoscaling.upscalingMode`              | Ray autoscaler upscaling mode                   | `Default` |
 | `inference.rayOptions.autoscaling.idleTimeoutSeconds`         | How long to wait before scaling down idle nodes | `60`      |
@@ -278,6 +288,12 @@ helm install gpu-vllm-inference ./inference-charts --values values-llama-32-1b-v
 
 ```bash
 helm install gpu-ray-vllm-inference ./inference-charts --values values-llama-32-1b-ray-vllm.yaml
+```
+
+### Deploy GPU AIBrix with Llama 3.2 1B model
+
+```bash
+helm install gpu-aibrix-inference ./inference-charts --values values-llama-32-1b-aibrix.yaml
 ```
 
 ### Deploy Neuron VLLM with DeepSeek R1 Distill Llama 8B model
@@ -355,8 +371,11 @@ inference:
       rayGrafanaIframeHost: http://localhost:3000
 
   modelServer:
+    # For Ray deployments, specify VLLM and Python versions
+    vllmVersion: 0.9.1
+    pythonVersion: 3.11
     image:
-      repository: vllm/vllm-openai
+      repository: vllm/vllm-openai  # Use rayproject/ray for Ray deployments
       tag: latest
     # For Ray deployments, specify VLLM and Python versions
     vllmVersion: 0.9.1
