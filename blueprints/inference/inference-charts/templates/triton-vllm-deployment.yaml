@@ -1,4 +1,3 @@
-{{/*TODO: Implement Neuron*/}}
 {{- if eq .Values.inference.framework "triton-vllm" }}
 apiVersion: apps/v1
 kind: Deployment
@@ -44,12 +43,6 @@ spec:
                 secretKeyRef:
                   name: hf-token
                   key: token
-#            {{- if eq .Values.inference.accelerator "neuron" }}
-#            - name: NEURON_RT_NUM_CORES
-#              value: "{{ .Values.tritonVllm.neuronCores | default 1 }}"
-#            - name: NEURON_RT_VISIBLE_CORES
-#              value: "0-{{ sub (.Values.tritonVllm.neuronCores | default 1) 1 }}"
-#            {{- end }}
           ports:
             - containerPort: 8000
               name: http
@@ -72,20 +65,12 @@ spec:
           resources:
             {{- if eq .Values.inference.accelerator "gpu" }}
             {{- toYaml .Values.inference.modelServer.deployment.resources.gpu | nindent 12 }}
-#            {{- else }}
-#            {{- toYaml .Values.inference.modelServer.deployment.resources.neuron | nindent 12 }}
             {{- end }}
           volumeMounts:
             - mountPath: /models/vllm_model
               name: model-repository
             - mountPath: /dev/shm
               name: dshm
-#      {{- if eq .Values.inference.accelerator "neuron" }}
-#      tolerations:
-#        - key: "aws.amazon.com/neuron"
-#          operator: "Exists"
-#          effect: "NoSchedule"
-#      {{- end }}
       {{- if .Values.inference.modelServer.deployment.instanceType }}
       nodeSelector:
         beta.kubernetes.io/instance-type: {{ .Values.inference.modelServer.deployment.instanceType }}
