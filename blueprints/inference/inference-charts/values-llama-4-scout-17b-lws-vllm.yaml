@@ -15,7 +15,7 @@ inference:
   serviceName: llama-4-scout-17b-lws-vllm
   serviceNamespace: default
   accelerator: gpu
-  framework: lwsVllm
+  framework: lws-vllm
   modelServer:
     image:
       repository: vllm/vllm-openai

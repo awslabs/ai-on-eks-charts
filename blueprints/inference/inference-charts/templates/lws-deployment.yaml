@@ -1,4 +1,4 @@
-{{- if eq .Values.inference.framework "lwsVllm" }}
+{{- if eq .Values.inference.framework "lws-vllm" }}
 apiVersion: leaderworkerset.x-k8s.io/v1
 kind: LeaderWorkerSet
 metadata:
