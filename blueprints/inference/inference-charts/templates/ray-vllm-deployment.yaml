@@ -1,4 +1,4 @@
-{{- if eq .Values.inference.framework "rayVllm" }}
+{{- if eq .Values.inference.framework "ray-vllm" }}
 apiVersion: ray.io/v1
 kind: RayService
 metadata:

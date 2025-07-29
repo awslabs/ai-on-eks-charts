@@ -18,7 +18,7 @@ The following service is available:
   http://{{ .Release.Name }}:{{ .Values.service.port }}/v1/chat/completions
 {{- end }}
 
-{{- if eq .Values.inference.framework "rayVllm" }}
+{{- if eq .Values.inference.framework "ray-vllm" }}
 {{ .Values.inference.accelerator | title }} Ray-VLLM Service:
   $ kubectl get svc {{ .Release.Name }}
 
@@ -52,7 +52,7 @@ Available API endpoints:
 No inference service was enabled. Please set both accelerator and framework values:
 
 - inference.accelerator: gpu or neuron
-- inference.framework: vllm or rayVllm
+- inference.framework: vllm or ray-vllm
 
 For example:
   $ helm upgrade {{ .Release.Name }} . --set inference.accelerator=gpu --set inference.framework=vllm

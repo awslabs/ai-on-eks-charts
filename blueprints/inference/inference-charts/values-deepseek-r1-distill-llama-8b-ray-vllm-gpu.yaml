@@ -15,7 +15,7 @@ inference:
   serviceName: deepseekr1-dis-llama-8b-ray-vllm
   serviceNamespace: default
   accelerator: gpu
-  framework: rayVllm
+  framework: ray-vllm
 
   rayOptions:
     rayVersion: 2.47.0
