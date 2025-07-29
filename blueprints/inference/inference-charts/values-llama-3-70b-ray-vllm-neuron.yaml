@@ -14,7 +14,7 @@ inference:
   serviceName: llama-3-70b-ray-vllm-neuron
   serviceNamespace: default
   accelerator: neuron
-  framework: rayVllm
+  framework: ray-vllm
 
   modelServer:
     image:

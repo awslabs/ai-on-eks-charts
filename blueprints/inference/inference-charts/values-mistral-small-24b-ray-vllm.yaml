@@ -15,7 +15,7 @@ inference:
   serviceName: mistral-small-24B-instruct-2501-ray-vllm
   serviceNamespace: default
   accelerator: gpu
-  framework: rayVllm
+  framework: ray-vllm
 
   rayOptions:
     rayVersion: 2.46.0

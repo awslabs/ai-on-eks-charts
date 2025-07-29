@@ -16,7 +16,7 @@ inference:
   serviceName: llama-32-1b-ray-vllm-scaling
   serviceNamespace: default
   accelerator: gpu
-  framework: rayVllm
+  framework: ray-vllm
 
   rayOptions:
     rayVersion: 2.47.0
