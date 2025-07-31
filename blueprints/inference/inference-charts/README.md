@@ -14,6 +14,7 @@ The chart supports the following deployment types:
 - GPU-based Triton-VLLM deployments
 - GPU-based AIBrix deployments
 - GPU-based LeaderWorkerSet-VLLM deployments
+- GPU-based Diffusers deployments
 - Neuron-based VLLM deployments
 - Neuron-based Ray-VLLM deployments
 - Neuron-based Triton-VLLM deployments (Coming Soon)
@@ -62,6 +63,14 @@ The chart supports the following deployment types:
 - Automatic leader-worker coordination and service discovery
 - Requires LeaderWorkerSet CRD to be installed in the cluster
 
+**Diffusers Deployments** (`framework: diffusers`):
+
+- Hugging Face Diffusers library for image generation and diffusion models
+- Supports various diffusion pipelines including Stable Diffusion, FLUX, Kolors, and more
+- Uses custom diffusers container image optimized for GPU inference
+- Ideal for text-to-image, image-to-image, and other generative AI workloads
+- Supports multiple pipeline types: `stable-diffusion`, `diffusion`, `kolors`, `stablediffusion3`, `omnigen`
+
 ## Prerequisites
 
 - Kubernetes cluster with GPU or AWS Neuron nodes
@@ -87,61 +96,63 @@ kubectl create secret generic hf-token --from-literal=token=your_huggingface_tok
 
 The following table lists the configurable parameters of the inference-charts chart and their default values.
 
-| Parameter                                                                | Description                                                                | Default                                                                     |
-|--------------------------------------------------------------------------|----------------------------------------------------------------------------|-----------------------------------------------------------------------------|
-| `global.image.pullPolicy`                                                | Global image pull policy                                                   | `IfNotPresent`                                                              |
-| `inference.accelerator`                                                  | Accelerator type to use (gpu or neuron)                                    | `gpu`                                                                       |
-| `inference.framework`                                                    | Framework type to use (vllm or ray-vllm, triton-vllm, aibrix, or lws-vllm) | `vllm`                                                                      |
-| `inference.serviceName`                                                  | Name of the inference service                                              | `inference`                                                                 |
-| `inference.serviceNamespace`                                             | Namespace for the inference service                                        | `default`                                                                   |
-| `inference.modelServer.image.repository`                                 | Model server image repository                                              | `vllm/vllm-openai`                                                          |
-| `inference.modelServer.image.tag`                                        | Model server image tag                                                     | `latest`                                                                    |
-| `inference.modelServer.vllmVersion`                                      | VLLM version (for Ray deployments)                                         | Not set                                                                     |
-| `inference.modelServer.pythonVersion`                                    | Python version (for Ray deployments)                                       | Not set                                                                     |
-| `inference.modelServer.env`                                              | Custom environment variables                                               | `{}`                                                                        |
-| `inference.modelServer.deployment.replicas`                              | Number of replicas                                                         | `1`                                                                         |
-| `inference.modelServer.deployment.minReplicas`                           | Minimum number of replicas (for Ray)                                       | `1`                                                                         |
-| `inference.modelServer.deployment.maxReplicas`                           | Maximum number of replicas (for Ray)                                       | `2`                                                                         |
-| `inference.modelServer.deployment.instanceType`                          | Node selector for instance type                                            | Not set                                                                     |
-| `inference.modelServer.deployment.topologySpreadConstraints.enabled`     | Enable topology spread constraints                                         | `true`                                                                      |
-| `inference.modelServer.deployment.topologySpreadConstraints.constraints` | List of topology spread constraints                                        | See default configuration                                                   |
-| `inference.modelServer.deployment.podAffinity.enabled`                   | Enable pod affinity                                                        | `true`                                                                      |
-| `inference.rayOptions.rayVersion`                                        | Ray version to use                                                         | `2.47.0`                                                                    |
-| `inference.rayOptions.autoscaling.enabled`                               | Enable Ray native autoscaling                                              | `false`                                                                     |
-| `inference.rayOptions.autoscaling.upscalingMode`                         | Ray autoscaler upscaling mode                                              | `Default`                                                                   |
-| `inference.rayOptions.autoscaling.idleTimeoutSeconds`                    | Idle timeout before scaling down                                           | `60`                                                                        |
-| `inference.rayOptions.autoscaling.actorAutoscaling.minActors`            | Minimum number of actors                                                   | `1`                                                                         |
-| `inference.rayOptions.autoscaling.actorAutoscaling.maxActors`            | Maximum number of actors                                                   | `1`                                                                         |
-| `inference.rayOptions.observability.rayPrometheusHost`                   | Ray Prometheus host URL                                                    | `http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090` |
-| `inference.rayOptions.observability.rayGrafanaHost`                      | Ray Grafana host URL                                                       | `http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local`         |
-| `inference.rayOptions.observability.rayGrafanaIframeHost`                | Ray Grafana iframe host URL                                                | `http://localhost:3000`                                                     |
-| `vllm.logLevel`                                                          | Log level for VLLM                                                         | `debug`                                                                     |
-| `vllm.port`                                                              | VLLM server port                                                           | `8004`                                                                      |
-| `service.type`                                                           | Service type                                                               | `ClusterIP`                                                                 |
-| `service.port`                                                           | Service port                                                               | `8000`                                                                      |
-| `fluentbit.image.repository`                                             | Fluent Bit image repository                                                | `fluent/fluent-bit`                                                         |
-| `fluentbit.image.tag`                                                    | Fluent Bit image tag                                                       | `3.2.2`                                                                     |
+| Parameter                                                                | Description                                                                         | Default                                                                     |
+|--------------------------------------------------------------------------|-------------------------------------------------------------------------------------|-----------------------------------------------------------------------------|
+| `global.image.pullPolicy`                                                | Global image pull policy                                                            | `IfNotPresent`                                                              |
+| `inference.accelerator`                                                  | Accelerator type to use (gpu or neuron)                                             | `gpu`                                                                       |
+| `inference.framework`                                                    | Framework type to use (vllm, ray-vllm, triton-vllm, aibrix, lws-vllm, or diffusers) | `vllm`                                                                      |
+| `inference.serviceName`                                                  | Name of the inference service                                                       | `inference`                                                                 |
+| `inference.serviceNamespace`                                             | Namespace for the inference service                                                 | `default`                                                                   |
+| `inference.modelServer.image.repository`                                 | Model server image repository                                                       | `vllm/vllm-openai`                                                          |
+| `inference.modelServer.image.tag`                                        | Model server image tag                                                              | `latest`                                                                    |
+| `inference.modelServer.vllmVersion`                                      | VLLM version (for Ray deployments)                                                  | Not set                                                                     |
+| `inference.modelServer.pythonVersion`                                    | Python version (for Ray deployments)                                                | Not set                                                                     |
+| `inference.modelServer.env`                                              | Custom environment variables                                                        | `{}`                                                                        |
+| `inference.modelServer.deployment.replicas`                              | Number of replicas                                                                  | `1`                                                                         |
+| `inference.modelServer.deployment.minReplicas`                           | Minimum number of replicas (for Ray)                                                | `1`                                                                         |
+| `inference.modelServer.deployment.maxReplicas`                           | Maximum number of replicas (for Ray)                                                | `2`                                                                         |
+| `inference.modelServer.deployment.instanceType`                          | Node selector for instance type                                                     | Not set                                                                     |
+| `inference.modelServer.deployment.topologySpreadConstraints.enabled`     | Enable topology spread constraints                                                  | `true`                                                                      |
+| `inference.modelServer.deployment.topologySpreadConstraints.constraints` | List of topology spread constraints                                                 | See default configuration                                                   |
+| `inference.modelServer.deployment.podAffinity.enabled`                   | Enable pod affinity                                                                 | `true`                                                                      |
+| `inference.rayOptions.rayVersion`                                        | Ray version to use                                                                  | `2.47.0`                                                                    |
+| `inference.rayOptions.autoscaling.enabled`                               | Enable Ray native autoscaling                                                       | `false`                                                                     |
+| `inference.rayOptions.autoscaling.upscalingMode`                         | Ray autoscaler upscaling mode                                                       | `Default`                                                                   |
+| `inference.rayOptions.autoscaling.idleTimeoutSeconds`                    | Idle timeout before scaling down                                                    | `60`                                                                        |
+| `inference.rayOptions.autoscaling.actorAutoscaling.minActors`            | Minimum number of actors                                                            | `1`                                                                         |
+| `inference.rayOptions.autoscaling.actorAutoscaling.maxActors`            | Maximum number of actors                                                            | `1`                                                                         |
+| `inference.rayOptions.observability.rayPrometheusHost`                   | Ray Prometheus host URL                                                             | `http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090` |
+| `inference.rayOptions.observability.rayGrafanaHost`                      | Ray Grafana host URL                                                                | `http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local`         |
+| `inference.rayOptions.observability.rayGrafanaIframeHost`                | Ray Grafana iframe host URL                                                         | `http://localhost:3000`                                                     |
+| `vllm.logLevel`                                                          | Log level for VLLM                                                                  | `debug`                                                                     |
+| `vllm.port`                                                              | VLLM server port                                                                    | `8004`                                                                      |
+| `service.type`                                                           | Service type                                                                        | `ClusterIP`                                                                 |
+| `service.port`                                                           | Service port                                                                        | `8000`                                                                      |
+| `fluentbit.image.repository`                                             | Fluent Bit image repository                                                         | `fluent/fluent-bit`                                                         |
+| `fluentbit.image.tag`                                                    | Fluent Bit image tag                                                                | `3.2.2`                                                                     |
 
 ### Model Parameters
 
 The chart provides configuration for various model parameters:
 
-| Parameter                                   | Description                      | Default                     |
-| ------------------------------------------- | -------------------------------- | --------------------------- |
-| `modelParameters.modelId`                   | Model ID from Hugging Face Hub   | `NousResearch/Llama-3.2-1B` |
-| `modelParameters.gpuMemoryUtilization`      | GPU memory utilization           | `0.8`                       |
-| `modelParameters.maxModelLen`               | Maximum model sequence length    | `8192`                      |
-| `modelParameters.maxNumSeqs`                | Maximum number of sequences      | `4`                         |
-| `modelParameters.maxNumBatchedTokens`       | Maximum number of batched tokens | `8192`                      |
-| `modelParameters.tokenizerPoolSize`         | Tokenizer pool size              | `4`                         |
-| `modelParameters.maxParallelLoadingWorkers` | Maximum parallel loading workers | `2`                         |
-| `modelParameters.pipelineParallelSize`      | Pipeline parallel size           | `1`                         |
-| `modelParameters.tensorParallelSize`        | Tensor parallel size             | `1`                         |
-| `modelParameters.enablePrefixCaching`       | Enable prefix caching            | `true`                      |
-| `modelParameters.numGpus`                   | Number of GPUs to use            | `1`                         |
+| Parameter                                   | Description                           | Default                     |
+|---------------------------------------------|---------------------------------------|-----------------------------|
+| `modelParameters.modelId`                   | Model ID from Hugging Face Hub        | `NousResearch/Llama-3.2-1B` |
+| `modelParameters.gpuMemoryUtilization`      | GPU memory utilization                | `0.8`                       |
+| `modelParameters.maxModelLen`               | Maximum model sequence length         | `8192`                      |
+| `modelParameters.maxNumSeqs`                | Maximum number of sequences           | `4`                         |
+| `modelParameters.maxNumBatchedTokens`       | Maximum number of batched tokens      | `8192`                      |
+| `modelParameters.tokenizerPoolSize`         | Tokenizer pool size                   | `4`                         |
+| `modelParameters.maxParallelLoadingWorkers` | Maximum parallel loading workers      | `2`                         |
+| `modelParameters.pipelineParallelSize`      | Pipeline parallel size                | `1`                         |
+| `modelParameters.tensorParallelSize`        | Tensor parallel size                  | `1`                         |
+| `modelParameters.enablePrefixCaching`       | Enable prefix caching                 | `true`                      |
+| `modelParameters.numGpus`                   | Number of GPUs to use                 | `1`                         |
+| `modelParameters.pipeline`                  | Pipeline type for diffusers framework | Not set                     |
 
 **Note**: Model parameters are automatically converted to environment variables in SCREAMING_SNAKE_CASE format (e.g.,
-`modelId` becomes `MODEL_ID`, `maxNumSeqs` becomes `MAX_NUM_SEQS`).
+`modelId` becomes `MODEL_ID`, `maxNumSeqs` becomes `MAX_NUM_SEQS`). For diffusers deployments, the `pipeline` parameter
+specifies the diffusion pipeline type to use.
 
 ### Ray GCS High Availability Parameters
 
@@ -161,18 +172,32 @@ The chart includes pre-configured values files for the following models:
 
 ### GPU Models
 
+#### Language Models
+
 - **DeepSeek R1 Distill Llama 8B**: `values-deepseek-r1-distill-llama-8b-ray-vllm-gpu.yaml` (Ray-VLLM)
-- **Llama 3.2 1B**: `values-llama-32-1b-vllm.yaml` (VLLM), `values-llama-32-1b-ray-vllm.yaml` (Ray-VLLM), `values-llama-32-1b-ray-vllm-autoscaling.yaml` (Ray-VLLM with autoscaling), and `values-llama-32-1b-ray-vllm-redis.yaml` (Ray-VLLM with Redis), `values-llama-32-1b-aibrix.yaml` (AIBrix)
+- **Llama 3.2 1B**: `values-llama-32-1b-vllm.yaml` (VLLM), `values-llama-32-1b-ray-vllm.yaml` (Ray-VLLM),
+  `values-llama-32-1b-ray-vllm-autoscaling.yaml` (Ray-VLLM with autoscaling), and
+  `values-llama-32-1b-ray-vllm-redis.yaml` (Ray-VLLM with Redis), `values-llama-32-1b-aibrix.yaml` (AIBrix)
 - **Llama 4 Scout 17B**: `values-llama-4-scout-17b-vllm.yaml` (VLLM) and `values-llama-4-scout-17b-lws-vllm.yaml` (
   LeaderWorkerSet-VLLM)
 - **Mistral Small 24B**: `values-mistral-small-24b-ray-vllm.yaml` (Ray-VLLM)
+
+#### Diffusion Models
+
+- **FLUX.1 Schnell**: `values-flux-1-diffusers.yaml` (Diffusers)
+- **Kolors**: `values-kolors-diffusers.yaml` (Diffusers)
+- **Stable Diffusion 3.5 Large**: `values-stable-diffusion-3.5-large-diffusers.yaml` (Diffusers)
+- **Stable Diffusion XL Base 1.0**: `values-stable-diffusion-xl-base-1-diffusers.yaml` (Diffusers)
+- **Latent Diffusion**: `values-latent-diffusion-diffusers.yaml` (Diffusers)
+- **OmniGen**: `values-omni-gen-diffusers.yaml` (Diffusers)
 
 ### Neuron Models
 
 - **DeepSeek R1 Distill Llama 8B**: `values-deepseek-r1-distill-llama-8b-vllm-neuron.yaml` (VLLM)
 - **Llama 2 13B**: `values-llama-2-13b-ray-vllm-neuron.yaml` (Ray-VLLM)
 - **Llama 3 70B**: `values-llama-3-70b-ray-vllm-neuron.yaml` (Ray-VLLM)
-- **Llama 3.1 8B**: `values-llama-31-8b-vllm-neuron.yaml` (VLLM) and `values-llama-31-8b-ray-vllm-neuron.yaml` (Ray-VLLM)
+- **Llama 3.1 8B**: `values-llama-31-8b-vllm-neuron.yaml` (VLLM) and `values-llama-31-8b-ray-vllm-neuron.yaml` (
+  Ray-VLLM)
 
 ## Topology Spread Constraints
 
@@ -271,7 +296,7 @@ on workload demand. This is more efficient than Kubernetes HPA as it understands
 ### Autoscaling Configuration
 
 | Parameter                                                     | Description                                     | Default   |
-| ------------------------------------------------------------- | ----------------------------------------------- | --------- |
+|---------------------------------------------------------------|-------------------------------------------------|-----------|
 | `inference.rayOptions.autoscaling.enabled`                    | Enable Ray native autoscaling                   | `false`   |
 | `inference.rayOptions.autoscaling.upscalingMode`              | Ray autoscaler upscaling mode                   | `Default` |
 | `inference.rayOptions.autoscaling.idleTimeoutSeconds`         | How long to wait before scaling down idle nodes | `60`      |
@@ -291,6 +316,73 @@ inference:
       actorAutoscaling:
         minActors: 1
         maxActors: 5
+```
+
+## Diffusers Framework
+
+The Diffusers framework provides support for Hugging Face Diffusers library, enabling deployment of various image
+generation and diffusion models on GPU infrastructure.
+
+### Supported Pipeline Types
+
+The chart supports multiple diffusion pipeline types through the `modelParameters.pipeline` configuration:
+
+| Pipeline Type      | Description                                                     | Example Models                        |
+|--------------------|-----------------------------------------------------------------|---------------------------------------|
+| `flux`             | Standard Stable Diffusion pipeline for text-to-image generation | FLUX.1-schnell                        |
+| `diffusion`        | Generic diffusion pipeline for various diffusion models         | Stable Diffusion XL, Latent Diffusion |
+| `kolors`           | Kolors-specific pipeline for Kolors diffusion models            | Kwai-Kolors/Kolors-diffusers          |
+| `stablediffusion3` | Stable Diffusion 3.x pipeline with enhanced capabilities        | Stable Diffusion 3.5 Large            |
+| `omnigen`          | OmniGen pipeline for multi-modal generation                     | Shitao/OmniGen-v1                     |
+
+### Diffusers Configuration
+
+For Diffusers deployments, use the following configuration structure:
+
+```yaml
+inference:
+  accelerator: gpu
+  framework: diffusers
+  serviceName: my-diffusers-service
+  serviceNamespace: default
+
+  modelServer:
+    image:
+      repository: ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/IMAGE_NAME
+      tag: IMAGE_TAG
+    deployment:
+      instanceType: g6e.2xlarge  # Recommended GPU instance type
+      replicas: 1
+
+modelParameters:
+  modelId: "stabilityai/stable-diffusion-xl-base-1.0"
+  numGpus: 1
+  pipeline: diffusion  # Choose appropriate pipeline type
+```
+
+### Hardware Requirements
+
+Diffusers deployments are optimized for GPU inference and typically require:
+
+- **GPU Memory**: 8GB+ VRAM recommended for most models
+- **Instance Types**: g6e.2xlarge or higher recommended
+- **Storage**: Sufficient space for model weights (varies by model, typically 2-10GB)
+
+### API Endpoints
+
+Diffusers deployments expose REST API endpoints for image generation:
+
+- `/v1/generations` - Primary image generation endpoint
+
+### Example API Usage
+
+```bash
+# Generate an image using the diffusers API
+curl -X POST http://localhost:8000/v1/generations \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "prompt": "A beautiful sunset over mountains",
+  }'
 ```
 
 ## Examples
@@ -379,6 +471,44 @@ helm install gpu-ray-vllm-redis ./inference-charts --values values-llama-32-1b-r
 helm install gpu-triton-vllm ./inference-charts --values values-triton-vllm-gpu.yaml
 ```
 
+### Deploy Diffusers Models
+
+#### Deploy FLUX.1 Schnell for image generation
+
+```bash
+helm install flux-diffusers ./inference-charts --values values-flux-1-diffusers.yaml
+```
+
+#### Deploy Stable Diffusion XL Base 1.0
+
+```bash
+helm install sdxl-diffusers ./inference-charts --values values-stable-diffusion-xl-base-1-diffusers.yaml
+```
+
+#### Deploy Stable Diffusion 3.5 Large
+
+```bash
+helm install sd3-diffusers ./inference-charts --values values-stable-diffusion-3.5-large-diffusers.yaml
+```
+
+#### Deploy Kolors for artistic image generation
+
+```bash
+helm install kolors-diffusers ./inference-charts --values values-kolors-diffusers.yaml
+```
+
+#### Deploy OmniGen for multi-modal generation
+
+```bash
+helm install omnigen-diffusers ./inference-charts --values values-omni-gen-diffusers.yaml
+```
+
+#### Deploy Latent Diffusion
+
+```bash
+helm install latent-diffusion ./inference-charts --values values-latent-diffusion-diffusers.yaml
+```
+
 ### Custom Deployment
 
 You can also create your own values file with custom settings:
@@ -386,7 +516,7 @@ You can also create your own values file with custom settings:
 ```yaml
 inference:
   accelerator: gpu  # or neuron
-  framework: vllm   # or ray-vllm, triton-vllm, aibrix, or lws-vllm
+  framework: vllm   # or ray-vllm, triton-vllm, aibrix, lws-vllm, or diffusers
   serviceName: custom-inference
   serviceNamespace: default
 
@@ -422,7 +552,7 @@ inference:
             nvidia.com/gpu: 1
           limits:
             nvidia.com/gpu: 1
-    env: {}  # Custom environment variables
+    env: { }  # Custom environment variables
 
 modelParameters:
   modelId: "NousResearch/Llama-3.2-1B"
@@ -436,6 +566,12 @@ modelParameters:
   tensorParallelSize: 1
   enablePrefixCaching: true
   numGpus: 1
+
+# For diffusers deployments, use this configuration instead:
+# modelParameters:
+#   modelId: "stabilityai/stable-diffusion-xl-base-1.0"
+#   numGpus: 1
+#   pipeline: diffusion
 ```
 
 Then install the chart with your custom values:
