@@ -16,6 +16,7 @@ data:
     from pydantic import BaseModel
     from fastapi import FastAPI
     from huggingface_hub import login
+    import importlib
 
     # Environment and configuration setup
     logger = logging.getLogger("serve")
@@ -26,9 +27,15 @@ data:
 
     class DiffuserDeployment:
       def __init__(self):
-        model_id = os.getenv("MODEL_ID", "black-forest-labs/FLUX.1-schnell")
-        pipeline = str.lower(os.getenv("PIPELINE", "flux"))
-        self.pipe = self.get_pipeline(pipeline, model_id)
+        self.model_id = os.getenv("MODEL_ID")
+        self.pipeline_name = os.getenv("PIPELINE").lower()
+
+        if not self.model_id:
+            raise ValueError("MODEL_ID environment variable is required")
+        if not self.pipeline_name:
+            raise ValueError("PIPELINE environment variable is required")
+
+        self.pipe = self.get_pipeline()
 
         hf_token = os.getenv("HUGGING_FACE_HUB_TOKEN")
         if not hf_token:
@@ -37,20 +44,61 @@ data:
           login(token=hf_token)
           logger.info("Successfully logged in to Hugging Face Hub")
 
-      def get_pipeline(self, pipeline, model_id):
-          match pipeline:
-            case 'flux':
-              from diffusers import FluxPipeline
-              return FluxPipeline.from_pretrained(model_id, torch_dtype=torch.bfloat16).to("cuda")
-            case 'diffusion':
-              from diffusers import DiffusionPipeline
-              return DiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.bfloat16).to("cuda")
-            case 'stablediffusion3':
-              from diffusers import StableDiffusion3Pipeline
-              return StableDiffusion3Pipeline.from_pretrained(model_id, torch_dtype=torch.bfloat16).to("cuda")
-            case 'kolors':
-              from diffusers import KolorsPipeline
-              return KolorsPipeline.from_pretrained(model_id, torch_dtype=torch.float16, variant="fp16").to("cuda")
+      def get_pipeline_config(self, pipeline_name):
+          """Get pipeline configuration by name"""
+          configs = {
+              "flux": {
+                  "class": "FluxPipeline",
+                  "torch_dtype": torch.bfloat16,
+                  "variant": None
+              },
+              "stablediffusion3": {
+                  "class": "StableDiffusion3Pipeline",
+                  "torch_dtype": torch.bfloat16,
+                  "variant": None
+              },
+              "kolors": {
+                  "class": "KolorsPipeline",
+                  "torch_dtype": torch.float16,
+                  "variant": "fp16"
+              },
+              "omnigen": {
+                  "class": "OmniGenPipeline",
+                  "torch_dtype": torch.bfloat16,
+                  "variant": None
+              },
+              "diffusion": {
+                  "class": "DiffusionPipeline",
+                  "torch_dtype": None,
+                  "variant": None
+              }
+          }
+
+          if pipeline_name not in configs:
+              available = ", ".join(configs.keys())
+              raise ValueError(f"Unknown pipeline '{pipeline_name}'. Available: {available}")
+
+          return configs[pipeline_name]
+
+      def get_pipeline(self):
+          """Load pipeline using explicit environment variable"""
+          logger.info(f"Loading pipeline '{self.pipeline_name}' for model '{self.model_id}'")
+
+          config = self.get_pipeline_config(self.pipeline_name)
+
+          # Dynamically import the pipeline class
+          diffusers_module = importlib.import_module("diffusers")
+          pipeline_class = getattr(diffusers_module, config["class"])
+
+          # Build kwargs for pipeline initialization
+          kwargs = {}
+          if config["torch_dtype"]:
+              kwargs["torch_dtype"] = config["torch_dtype"]
+          if config["variant"]:
+              kwargs["variant"] = config["variant"]
+
+          logger.info(f"Initializing {config['class']} with model {self.model_id}")
+          return pipeline_class.from_pretrained(self.model_id, **kwargs).to("cuda")
       async def get_response(self, raw_request: Request):
                                                   prompt = raw_request.prompt
                                                   image = self.pipe(prompt).images[0]
