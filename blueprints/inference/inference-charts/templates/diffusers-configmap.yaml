@@ -1,0 +1,76 @@
+{{- if eq .Values.inference.framework "diffusers" }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: diffusers-serve
+  labels:
+    "app.kubernetes.io/component": "{{.Values.inference.serviceName}}"
+data:
+  serve_script.py: |
+    import torch
+    import io
+    from fastapi.responses import StreamingResponse
+    import os
+    import logging
+    import uvicorn
+    from pydantic import BaseModel
+    from fastapi import FastAPI
+    from huggingface_hub import login
+
+    # Environment and configuration setup
+    logger = logging.getLogger("serve")
+    app = FastAPI()
+
+    class Request(BaseModel):
+      prompt: str
+
+    class DiffuserDeployment:
+      def __init__(self):
+        model_id = os.getenv("MODEL_ID", "black-forest-labs/FLUX.1-schnell")
+        pipeline = str.lower(os.getenv("PIPELINE", "flux"))
+        self.pipe = self.get_pipeline(pipeline, model_id)
+
+        hf_token = os.getenv("HUGGING_FACE_HUB_TOKEN")
+        if not hf_token:
+          logger.warning("HUGGING_FACE_HUB_TOKEN environment variable is not set")
+        else:
+          login(token=hf_token)
+          logger.info("Successfully logged in to Hugging Face Hub")
+
+      def get_pipeline(self, pipeline, model_id):
+          match pipeline:
+            case 'flux':
+              from diffusers import FluxPipeline
+              return FluxPipeline.from_pretrained(model_id, torch_dtype=torch.bfloat16).to("cuda")
+            case 'diffusion':
+              from diffusers import DiffusionPipeline
+              return DiffusionPipeline.from_pretrained(model_id, torch_dtype=torch.bfloat16).to("cuda")
+            case 'stablediffusion3':
+              from diffusers import StableDiffusion3Pipeline
+              return StableDiffusion3Pipeline.from_pretrained(model_id, torch_dtype=torch.bfloat16).to("cuda")
+            case 'kolors':
+              from diffusers import KolorsPipeline
+              return KolorsPipeline.from_pretrained(model_id, torch_dtype=torch.float16, variant="fp16").to("cuda")
+      async def get_response(self, raw_request: Request):
+                                                  prompt = raw_request.prompt
+                                                  image = self.pipe(prompt).images[0]
+                                                  memory_stream = io.BytesIO()
+                                                  image.save(memory_stream, format="PNG")
+                                                  memory_stream.seek(0)
+                                                  return StreamingResponse(memory_stream, media_type="image/png")
+    def create_deployment():
+      global deployment
+      deployment = DiffuserDeployment()
+      return deployment
+
+    @app.on_event("startup")
+    async def startup_event():
+      create_deployment()
+
+    @app.post("/v1/generations")
+    async def create_completion(raw_request: Request):
+                                               return await deployment.get_response(raw_request)
+
+    if __name__ == "__main__":
+      uvicorn.run(app, host="0.0.0.0", port=8000)
+{{- end }}
