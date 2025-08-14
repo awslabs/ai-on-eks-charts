@@ -11,7 +11,7 @@ inference:
 
   modelServer:
     image:
-      repository: 975050295866.dkr.ecr.us-west-2.amazonaws.com/diffusers
+      repository: diffusers/diffusers-pytorch-cuda
       tag: latest
     deployment:
       instanceType: g6e.2xlarge
