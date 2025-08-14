@@ -1,0 +1,17 @@
+modelParameters:
+  modelId: Kwai-Kolors/Kolors-diffusers
+  numGpus: 1
+  pipeline: kolors
+
+inference:
+  serviceName: kolors-diffusers
+  serviceNamespace: default
+  accelerator: gpu
+  framework: diffusers
+
+  modelServer:
+    image:
+      repository: diffusers/diffusers-pytorch-cuda
+      tag: latest
+    deployment:
+      instanceType: g6e.2xlarge
