@@ -22,7 +22,7 @@ spec:
           imagePullPolicy: {{ .Values.global.image.pullPolicy }}
           command: ["/bin/sh", "-c"]
           args: [
-            "python3 /app/serve_script.py"
+            "python3 -m uv pip install --no-cache-dir sentencepiece==0.2.0 diffusers==0.34.0 uvicorn==0.35.0 fastapi==0.116.1 && python3 /app/serve_script.py"
           ]
           env:
             - name: MODEL_ID
