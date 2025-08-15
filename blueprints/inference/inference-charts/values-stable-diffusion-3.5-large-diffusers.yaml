@@ -1,0 +1,17 @@
+modelParameters:
+  modelId: stabilityai/stable-diffusion-3.5-large
+  numGpus: 1
+  pipeline: stablediffusion3
+
+inference:
+  serviceName: sd3-diffusers
+  serviceNamespace: default
+  accelerator: gpu
+  framework: diffusers
+
+  modelServer:
+    image:
+      repository: diffusers/diffusers-pytorch-cuda
+      tag: latest
+    deployment:
+      instanceType: g6e.2xlarge

@@ -1,0 +1,17 @@
+modelParameters:
+  modelId: black-forest-labs/FLUX.1-schnell
+  numGpus: 1
+  pipeline: flux
+
+inference:
+  serviceName: flux-diffusers
+  serviceNamespace: default
+  accelerator: gpu
+  framework: diffusers
+
+  modelServer:
+    image:
+      repository: diffusers/diffusers-pytorch-cuda
+      tag: latest
+    deployment:
+      instanceType: g6e.2xlarge
