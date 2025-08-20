@@ -1,5 +1,6 @@
+model: deepseek-ai/DeepSeek-R1-Distill-Llama-8B
+
 modelParameters:
-  modelId: deepseek-ai/DeepSeek-R1-Distill-Llama-8B
   gpuMemoryUtilization: 0.8
   maxModelLen: 1024
   maxNumSeqs: 1
@@ -8,8 +9,6 @@ modelParameters:
   maxParallelLoadingWorkers: 2
   pipelineParallelSize: 1
   tensorParallelSize: 2
-  enablePrefixCaching: false
-  numGpus: 1
 
 inference:
   serviceName: deepseekr1-dis-llama-8b-vllm-nrn

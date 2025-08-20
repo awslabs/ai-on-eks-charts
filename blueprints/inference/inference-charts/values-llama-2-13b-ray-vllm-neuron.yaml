@@ -1,5 +1,6 @@
+model: NousResearch/Llama-2-13b-chat-hf
+
 modelParameters:
-  modelId: NousResearch/Llama-2-13b-chat-hf
   gpuMemoryUtilization: 0.8
   maxModelLen: 1024
   maxNumSeqs: 1
@@ -8,8 +9,6 @@ modelParameters:
   maxParallelLoadingWorkers: 2
   pipelineParallelSize: 1
   tensorParallelSize: 20 # Llama 2 has 40 attention heads, must be divisible
-  enablePrefixCaching: false
-  numGpus: 12
 
 inference:
   serviceName: llama-2-13b-ray-vllm-neuron

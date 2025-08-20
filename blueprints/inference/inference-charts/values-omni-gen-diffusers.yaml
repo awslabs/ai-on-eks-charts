@@ -1,6 +1,6 @@
+model: Shitao/OmniGen-v1
+
 modelParameters:
-  modelId: Shitao/OmniGen-v1
-  numGpus: 1
   pipeline: omnigen
 
 inference:

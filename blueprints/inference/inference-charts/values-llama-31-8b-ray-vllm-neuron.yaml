@@ -1,5 +1,6 @@
+model: meta-llama/Llama-3.1-8B-Instruct
+
 modelParameters:
-  modelId: meta-llama/Llama-3.1-8B-Instruct
   gpuMemoryUtilization: 0.8
   maxModelLen: 1024
   maxNumSeqs: 1

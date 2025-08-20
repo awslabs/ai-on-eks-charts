@@ -14,11 +14,15 @@ data:
         count: 1
       }
     ]
-
   model.json: |
+    {{- $params := .Values.modelParameters | deepCopy }}
+    {{- $params = set $params "model" .Values.model }}
+    {{- $newParams := dict }}
+    {{- range $key, $value := $params }}
+      {{- $snakeKey := $key | snakecase }}
+      {{- $newParams = set $newParams $snakeKey $value }}
+    {{- end }}
     {
-      "model": "{{.Values.modelParameters.modelId}}",
-      "gpu_memory_utilization": {{.Values.modelParameters.gpuMemoryUtilization}},
-      "enforce_eager": true
+      {{- $newParams | toJson | trimPrefix "{" | trimSuffix "}" }}
     }
 {{- end }}

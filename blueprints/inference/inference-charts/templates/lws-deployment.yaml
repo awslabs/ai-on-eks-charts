@@ -26,12 +26,6 @@ spec:
           - name: vllm-leader
             image: {{.Values.inference.modelServer.image.repository}}:{{.Values.inference.modelServer.image.tag}}
             env:
-              {{- if .Values.modelParameters }}
-              {{- range $key, $value := .Values.modelParameters }}
-              - name: {{ $key | snakecase | upper }}
-                value: "{{ $value }}"
-              {{- end }}
-              {{- end }}
               - name: HUGGING_FACE_HUB_TOKEN
                 valueFrom:
                   secretKeyRef:
@@ -41,12 +35,11 @@ spec:
               - sh
               - -c
               - "bash /vllm-workspace/examples/online_serving/multi-node-serving.sh leader --ray_cluster_size=$(LWS_GROUP_SIZE);
-                python3 -m vllm.entrypoints.openai.api_server --port 8080 --model $MODEL_ID --tensor-parallel-size $TENSOR_PARALLEL_SIZE --pipeline_parallel_size $PIPELINE_PARALLEL_SIZE --max-model-len $MAX_MODEL_LEN"
+                python3 -m vllm.entrypoints.openai.api_server --port 8080 --model {{ .Values.model }} {{ include "inference-charts.modelParameters" .  | trim -}}"
             resources:
-              limits:
-                nvidia.com/gpu: "{{.Values.modelParameters.numGpus}}"
-              requests:
-                nvidia.com/gpu: "{{.Values.modelParameters.numGpus}}"
+            {{- if eq .Values.inference.accelerator "gpu" }}
+            {{- toYaml .Values.inference.modelServer.deployment.resources.gpu | nindent 14 }}
+            {{- end }}
             ports:
               - containerPort: 8080
             readinessProbe:
@@ -76,17 +69,10 @@ spec:
               - -c
               - "bash /vllm-workspace/examples/online_serving/multi-node-serving.sh worker --ray_address=$(LWS_LEADER_ADDRESS)"
             resources:
-              limits:
-                nvidia.com/gpu: "{{.Values.modelParameters.numGpus}}"
-              requests:
-                nvidia.com/gpu: "{{.Values.modelParameters.numGpus}}"
+            {{- if eq .Values.inference.accelerator "gpu" }}
+            {{- toYaml .Values.inference.modelServer.deployment.resources.gpu | nindent 14 }}
+            {{- end }}
             env:
-              {{- if .Values.modelParameters }}
-              {{- range $key, $value := .Values.modelParameters }}
-              - name: {{ $key | snakecase | upper }}
-                value: "{{ $value }}"
-              {{- end }}
-              {{- end }}
               - name: HUGGING_FACE_HUB_TOKEN
                 valueFrom:
                   secretKeyRef:

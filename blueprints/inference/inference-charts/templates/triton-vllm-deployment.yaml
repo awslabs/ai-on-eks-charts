@@ -32,12 +32,6 @@ spec:
             "--log-verbose=1"
           ]
           env:
-            {{- if .Values.modelParameters }}
-            {{- range $key, $value := .Values.modelParameters }}
-            - name: {{ $key | snakecase | upper }}
-              value: "{{ $value }}"
-            {{- end }}
-            {{- end }}
             - name: HUGGING_FACE_HUB_TOKEN
               valueFrom:
                 secretKeyRef:

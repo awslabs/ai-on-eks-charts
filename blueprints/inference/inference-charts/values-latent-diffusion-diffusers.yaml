@@ -1,6 +1,6 @@
+model: CompVis/ldm-text2im-large-256
+
 modelParameters:
-  modelId: CompVis/ldm-text2im-large-256
-  numGpus: 1
   pipeline: diffusion
 
 inference:

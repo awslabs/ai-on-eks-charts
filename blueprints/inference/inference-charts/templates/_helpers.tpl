@@ -63,3 +63,15 @@ Component labels for Ray-VLLM
 {{- define "inference-charts.rayVllmComponentLabels" -}}
 app.kubernetes.io/component: {{.Values.inference.serviceName}}
 {{- end }}
+
+{{- define "inference-charts.modelParameters" -}}
+{{- $modelParameters := .Values.modelParameters -}}
+{{- $args := list -}}
+{{- range $key, $value := $modelParameters -}}
+  {{- $args = append $args (printf "--%s %v" ($key | kebabcase) $value) -}}
+{{- end -}}
+{{- if eq .Values.inference.framework "aibrix" }}
+    {{- $args = append $args (printf "--served-model-name %s" .Values.inference.serviceName) }}
+{{- end }}
+{{- printf "%s" (join " " $args) | trimSuffix " " -}}
+{{- end -}}

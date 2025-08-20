@@ -1,6 +1,6 @@
+model: Kwai-Kolors/Kolors-diffusers
+
 modelParameters:
-  modelId: Kwai-Kolors/Kolors-diffusers
-  numGpus: 1
   pipeline: kolors
 
 inference:

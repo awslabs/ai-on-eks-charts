@@ -1,5 +1,6 @@
+model: NousResearch/Meta-Llama-3-70B-Instruct
+
 modelParameters:
-  modelId: NousResearch/Meta-Llama-3-70B-Instruct
   gpuMemoryUtilization: 0.8
   maxModelLen: 4096
   maxNumSeqs: 10
@@ -7,8 +8,6 @@ modelParameters:
   maxParallelLoadingWorkers: 2
   pipelineParallelSize: 1
   tensorParallelSize: 16
-  enablePrefixCaching: false
-  numGpus: 12
 
 inference:
   serviceName: llama-3-70b-ray-vllm-neuron
