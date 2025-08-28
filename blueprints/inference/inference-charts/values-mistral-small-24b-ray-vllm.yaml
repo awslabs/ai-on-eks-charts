@@ -1,15 +1,12 @@
+model: mistralai/Mistral-Small-24B-Instruct-2501
+
 modelParameters:
-  modelId: mistralai/Mistral-Small-24B-Instruct-2501
   gpuMemoryUtilization: 0.9
   maxModelLen: 8192
   maxNumSeqs: 4
   maxNumBatchedTokens: 32768
-  tokenizerPoolSize: 4
-  maxParallelLoadingWorkers: 2
   pipelineParallelSize: 1
   tensorParallelSize: 4
-  enablePrefixCaching: true
-  numGpus: 4
 
 inference:
   serviceName: mistral-small-24B-instruct-2501-ray-vllm

@@ -1,6 +1,6 @@
+model: stabilityai/stable-diffusion-3.5-large
+
 modelParameters:
-  modelId: stabilityai/stable-diffusion-3.5-large
-  numGpus: 1
   pipeline: stablediffusion3
 
 inference:

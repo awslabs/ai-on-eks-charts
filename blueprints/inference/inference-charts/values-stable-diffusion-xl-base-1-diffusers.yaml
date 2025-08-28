@@ -1,6 +1,6 @@
+model: stabilityai/stable-diffusion-xl-base-1.0
+
 modelParameters:
-  modelId: stabilityai/stable-diffusion-xl-base-1.0
-  numGpus: 1
   pipeline: diffusion
 
 inference:

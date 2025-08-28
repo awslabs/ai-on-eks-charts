@@ -27,12 +27,12 @@ data:
 
     class DiffuserDeployment:
       def __init__(self):
-        self.model_id = os.getenv("MODEL_ID")
-        self.pipeline_name = os.getenv("PIPELINE").lower()
+        self.model = os.getenv("MODEL")
+        self.pipeline = os.getenv("PIPELINE").lower()
 
-        if not self.model_id:
-            raise ValueError("MODEL_ID environment variable is required")
-        if not self.pipeline_name:
+        if not self.model:
+            raise ValueError("MODEL environment variable is required")
+        if not self.pipeline:
             raise ValueError("PIPELINE environment variable is required")
 
         self.pipe = self.get_pipeline()
@@ -44,7 +44,7 @@ data:
           login(token=hf_token)
           logger.info("Successfully logged in to Hugging Face Hub")
 
-      def get_pipeline_config(self, pipeline_name):
+      def get_pipeline_config(self, pipeline):
           """Get pipeline configuration by name"""
           configs = {
               "flux": {
@@ -74,17 +74,17 @@ data:
               }
           }
 
-          if pipeline_name not in configs:
+          if pipeline not in configs:
               available = ", ".join(configs.keys())
-              raise ValueError(f"Unknown pipeline '{pipeline_name}'. Available: {available}")
+              raise ValueError(f"Unknown pipeline '{pipeline}'. Available: {available}")
 
-          return configs[pipeline_name]
+          return configs[pipeline]
 
       def get_pipeline(self):
           """Load pipeline using explicit environment variable"""
-          logger.info(f"Loading pipeline '{self.pipeline_name}' for model '{self.model_id}'")
+          logger.info(f"Loading pipeline '{self.pipeline}' for model '{self.model}'")
 
-          config = self.get_pipeline_config(self.pipeline_name)
+          config = self.get_pipeline_config(self.pipeline)
 
           # Dynamically import the pipeline class
           diffusers_module = importlib.import_module("diffusers")
@@ -97,8 +97,8 @@ data:
           if config["variant"]:
               kwargs["variant"] = config["variant"]
 
-          logger.info(f"Initializing {config['class']} with model {self.model_id}")
-          return pipeline_class.from_pretrained(self.model_id, **kwargs).to("cuda")
+          logger.info(f"Initializing {config['class']} with model {self.model}")
+          return pipeline_class.from_pretrained(self.model, **kwargs).to("cuda")
       async def get_response(self, raw_request: Request):
                                                   prompt = raw_request.prompt
                                                   image = self.pipe(prompt).images[0]

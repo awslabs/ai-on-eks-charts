@@ -30,20 +30,13 @@ spec:
           image: "{{ .Values.inference.modelServer.image.repository }}:{{ .Values.inference.modelServer.image.tag }}"
           imagePullPolicy: {{ .Values.global.image.pullPolicy }}
           command: ["/bin/sh", "-c"]
-          args: [
-            "python3 /vllm-workspace/vllm_serve.py"
-          ]
+          args:
+            - vllm serve {{ .Values.model}} {{ include "inference-charts.modelParameters" .  }}
           env:
-            {{- if .Values.modelParameters }}
-            {{- range $key, $value := .Values.modelParameters }}
-            - name: {{ $key | snakecase | upper }}
-              value: "{{ $value }}"
-            {{- end }}
-            {{- end }}
-            {{- if eq .Values.inference.framework "aibrix" }}
-            - name: SERVED_MODEL_NAME
-              value: "{{.Values.inference.serviceName}}"
-            {{- end }}
+          {{- range $key, $value := .Values.inference.modelServer.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+          {{- end }}
             - name: HUGGING_FACE_HUB_TOKEN
               valueFrom:
                 secretKeyRef:
@@ -59,9 +52,6 @@ spec:
             {{- toYaml .Values.inference.modelServer.deployment.resources.neuron | nindent 12 }}
             {{- end }}
           volumeMounts:
-            - mountPath: /vllm-workspace/vllm_serve.py
-              subPath: vllm_serve.py
-              name: vllm-script
             - mountPath: /dev/shm
               name: dshm
       {{- if eq .Values.inference.accelerator "neuron" }}
@@ -99,12 +89,6 @@ spec:
                   {{- end }}
       {{- end }}
       volumes:
-        - configMap:
-            items:
-              - key: vllm_serve.py
-                path: vllm_serve.py
-            name: vllm-serve
-          name: vllm-script
         - name: dshm
           emptyDir:
             medium: Memory

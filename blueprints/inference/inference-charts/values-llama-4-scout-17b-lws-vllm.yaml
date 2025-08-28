@@ -1,15 +1,12 @@
+model: meta-llama/Llama-4-Scout-17B-16E-Instruct
+
 modelParameters:
-  modelId: meta-llama/Llama-4-Scout-17B-16E-Instruct
   gpuMemoryUtilization: 0.8
   maxModelLen: 1024
   maxNumSeqs: 1
   maxNumBatchedTokens: 8192
-  tokenizerPoolSize: 4
-  maxParallelLoadingWorkers: 2
   pipelineParallelSize: 2
   tensorParallelSize: 8
-  enablePrefixCaching: false
-  numGpus: 8
 
 inference:
   serviceName: llama-4-scout-17b-lws-vllm

@@ -1,6 +1,6 @@
+model: black-forest-labs/FLUX.1-schnell
+
 modelParameters:
-  modelId: black-forest-labs/FLUX.1-schnell
-  numGpus: 1
   pipeline: flux
 
 inference:

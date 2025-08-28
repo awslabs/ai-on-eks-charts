@@ -1,0 +1,19 @@
+model: openai/gpt-oss-20b
+
+modelParameters:
+  maxModelLen: 8192
+
+inference:
+  serviceName: gpt-oss-20b-vllm
+  serviceNamespace: default
+  accelerator: gpu
+  framework: vllm
+
+  modelServer:
+    env:
+      VLLM_ATTENTION_BACKEND: TRITON_ATTN_VLLM_V1
+    image:
+      repository: vllm/vllm-openai
+      tag: v0.10.1
+    deployment:
+      instanceType: g6e.2xlarge
