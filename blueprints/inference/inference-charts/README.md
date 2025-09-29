@@ -137,7 +137,7 @@ The chart provides configuration for various model parameters:
 
 | Parameter                                   | Description                           | Default                     |
 |---------------------------------------------|---------------------------------------|-----------------------------|
-| `modelParameters.modelId`                   | Model ID from Hugging Face Hub        | `NousResearch/Llama-3.2-1B` |
+| `model`                                     | Model ID from Hugging Face Hub        | `NousResearch/Llama-3.2-1B` |
 | `modelParameters.gpuMemoryUtilization`      | GPU memory utilization                | `0.8`                       |
 | `modelParameters.maxModelLen`               | Maximum model sequence length         | `8192`                      |
 | `modelParameters.maxNumSeqs`                | Maximum number of sequences           | `4`                         |
@@ -150,8 +150,9 @@ The chart provides configuration for various model parameters:
 | `modelParameters.numGpus`                   | Number of GPUs to use                 | `1`                         |
 | `modelParameters.pipeline`                  | Pipeline type for diffusers framework | Not set                     |
 
-**Note**: Model parameters are automatically converted to environment variables in SCREAMING_SNAKE_CASE format (e.g.,
+**Note**: Model parameters are automatically converted to command line arguments in kebab-case format (e.g.,`maxNumSeqs`
 `modelId` becomes `MODEL_ID`, `maxNumSeqs` becomes `MAX_NUM_SEQS`). For diffusers deployments, the `pipeline` parameter
+becomes `--max-num-seqs`). For diffusers deployments, the `pipeline` parameter specifies the diffusion pipeline type to
 specifies the diffusion pipeline type to use.
 
 ### Ray GCS High Availability Parameters
