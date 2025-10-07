@@ -1,0 +1,48 @@
+{{- if  .Values.s3ModelCopy }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: s3-copy-configmap
+  namespace: {{.Values.s3ModelCopy.namespace}}
+data:
+  script.sh: |
+    #!/bin/bash
+    pip install huggingface-hub==0.35.3 awscli==1.42.47
+    mkdir /app/download
+    hf download $HUGGINGFACE_MODEL --local-dir /app/download/$HUGGINGFACE_MODEL
+    aws s3 cp --recursive /app/download/ s3://$S3_PATH
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: s3-copy
+  namespace: {{.Values.s3ModelCopy.namespace}}
+spec:
+  template:
+    spec:
+      containers:
+        - name: s3copy
+          image: python:3.13-slim
+          command: ["/bin/sh", "/app/script.sh"]
+          env:
+            - name: HUGGING_FACE_HUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hf-token
+                  key: token
+            - name: HUGGINGFACE_MODEL
+              value: "{{ .Values.s3ModelCopy.model}}"
+            - name: S3_PATH
+              value: "{{ .Values.s3ModelCopy.s3Path}}"
+          volumeMounts:
+            - mountPath: /app/script.sh
+              name: script
+              subPath: script.sh
+      serviceAccountName: "{{ .Values.serviceAccountName}}"
+      restartPolicy: Never
+      volumes:
+        - name: script
+          configMap:
+            name: s3-copy-configmap
+  backoffLimit: 4
+{{- end }}

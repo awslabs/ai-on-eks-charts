@@ -46,7 +46,7 @@ inference:
   accelerator: gpu
 
   # Framework type: vllm, ray-vllm, triton-vllm, aibrix, or lws-vllm
-  framework: vllm
+  framework:
 
   #Ray Specific Options
   rayOptions:
@@ -121,6 +121,13 @@ inference:
                 matchLabels: {} # Will be populated with deployment labels
     env: {}
 
+s3ModelCopy:
+  model:
+  s3Path:
+  namespace:
+
+# serviceAccountName to use for deployments
+serviceAccountName: default
 
 # Service configuration
 service:
