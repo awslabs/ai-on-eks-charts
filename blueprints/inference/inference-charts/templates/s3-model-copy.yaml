@@ -9,7 +9,7 @@ data:
     #!/bin/bash
     pip install huggingface-hub==0.35.3 awscli==1.42.47
     mkdir /app/download
-    hf download $HUGGINGFACE_MODEL --local-dir /app/download/$HUGGINGFACE_MODEL
+    hf download $HUGGING_FACE_MODEL --local-dir /app/download/$HUGGING_FACE_MODEL
     aws s3 cp --recursive /app/download/ s3://$S3_PATH
 ---
 apiVersion: batch/v1
@@ -30,7 +30,7 @@ spec:
                 secretKeyRef:
                   name: hf-token
                   key: token
-            - name: HUGGINGFACE_MODEL
+            - name: HUGGING_FACE_MODEL
               value: "{{ .Values.s3ModelCopy.model}}"
             - name: S3_PATH
               value: "{{ .Values.s3ModelCopy.s3Path}}"
