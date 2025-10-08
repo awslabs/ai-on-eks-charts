@@ -1,4 +1,4 @@
-{{- if  .Values.s3ModelCopy }}
+{{- if  .Values.s3ModelCopy.model }}
 apiVersion: v1
 kind: ConfigMap
 metadata:

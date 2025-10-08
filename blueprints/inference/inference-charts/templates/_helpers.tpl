@@ -73,5 +73,8 @@ app.kubernetes.io/component: {{.Values.inference.serviceName}}
 {{- if eq .Values.inference.framework "aibrix" }}
     {{- $args = append $args (printf "--served-model-name %s" .Values.inference.serviceName) }}
 {{- end }}
+{{- if and (not (eq .Values.inference.accelerator "neuron")) (eq .Values.inference.framework "vllm") }}
+    {{- $args = append $args (printf "--load-format runai_streamer") }}
+{{- end}}
 {{- printf "%s" (join " " $args) | trimSuffix " " -}}
 {{- end -}}
