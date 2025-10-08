@@ -119,12 +119,19 @@ inference:
               topologyKey: topology.kubernetes.io/zone
               labelSelector:
                 matchLabels: {} # Will be populated with deployment labels
+      startupProbe:
+        failureThreshold: 60
+        periodSeconds: 10
+        httpGet:
+          path: /health
+          port: 8000
     env: {}
 
 s3ModelCopy:
   model:
   s3Path:
   namespace:
+  serviceAccountName: # serviceAccountName to be used for model uploading to S3
 
 # serviceAccountName to use for deployments
 serviceAccountName: default

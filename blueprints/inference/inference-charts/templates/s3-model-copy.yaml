@@ -7,10 +7,11 @@ metadata:
 data:
   script.sh: |
     #!/bin/bash
-    pip install huggingface-hub==0.35.3 awscli==1.42.47
-    mkdir /app/download
-    hf download $HUGGING_FACE_MODEL --local-dir /app/download/$HUGGING_FACE_MODEL
+    pip install huggingface-hub==0.35.3 hf_transfer==0.1.9 awscli==1.42.47
+    mkdir -p /app/download/$HUGGING_FACE_MODEL
+    hf download --exclude original/ metal/ --local-dir /app/download/$HUGGING_FACE_MODEL $HUGGING_FACE_MODEL
     aws s3 cp --recursive /app/download/ s3://$S3_PATH
+    aws s3 sync --delete /app/download/$HUGGING_FACE_MODEL/ s3://$S3_PATH/$HUGGING_FACE_MODEL/
 ---
 apiVersion: batch/v1
 kind: Job
@@ -30,6 +31,8 @@ spec:
                 secretKeyRef:
                   name: hf-token
                   key: token
+            - name: HF_HUB_ENABLE_HF_TRANSFER
+              value: "1"
             - name: HUGGING_FACE_MODEL
               value: "{{ .Values.s3ModelCopy.model}}"
             - name: S3_PATH
@@ -38,7 +41,7 @@ spec:
             - mountPath: /app/script.sh
               name: script
               subPath: script.sh
-      serviceAccountName: "{{ .Values.serviceAccountName}}"
+      serviceAccountName: "{{ if .Values.s3ModelCopy.serviceAccountName }}{{ .Values.s3ModelCopy.serviceAccountName }}{{ else }}{{ .Values.serviceAccountName }}{{ end }}"
       restartPolicy: Never
       volumes:
         - name: script
