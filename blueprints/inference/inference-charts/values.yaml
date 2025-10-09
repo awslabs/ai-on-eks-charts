@@ -28,6 +28,7 @@ fluentbit:
       memory: 128Mi
 
 vllm:
+  loadFormat: # runai_streamer
   logLevel: debug
   port: 8004
 
