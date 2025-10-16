@@ -7,11 +7,12 @@ metadata:
 data:
   script.sh: |
     #!/bin/bash
-    pip install huggingface-hub==0.35.3 hf_transfer==0.1.9 awscli==1.42.47
+    pip install huggingface-hub==0.35.3 hf_transfer==0.1.9 awscliv2
+    awsv2 --install
     mkdir -p /app/download/$HUGGING_FACE_MODEL
     hf download --exclude original/ metal/ --local-dir /app/download/$HUGGING_FACE_MODEL $HUGGING_FACE_MODEL
-    aws s3 cp --recursive /app/download/ s3://$S3_PATH
-    aws s3 sync --delete /app/download/$HUGGING_FACE_MODEL/ s3://$S3_PATH/$HUGGING_FACE_MODEL/
+    awsv2 s3 cp --recursive /app/download/ s3://$S3_PATH
+    awsv2 s3 sync --delete /app/download/$HUGGING_FACE_MODEL/ s3://$S3_PATH/$HUGGING_FACE_MODEL/
 ---
 apiVersion: batch/v1
 kind: Job
@@ -21,6 +22,14 @@ metadata:
 spec:
   template:
     spec:
+      {{- if .Values.s3ModelCopy.instanceType }}
+      nodeSelector:
+        node.kubernetes.io/instance-type: {{ .Values.s3ModelCopy.instanceType }}
+      {{- end }}
+      tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
       containers:
         - name: s3copy
           image: python:3.13-slim
