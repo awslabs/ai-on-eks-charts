@@ -26,10 +26,6 @@ spec:
       nodeSelector:
         node.kubernetes.io/instance-type: {{ .Values.s3ModelCopy.instanceType }}
       {{- end }}
-      tolerations:
-        - key: "nvidia.com/gpu"
-          operator: "Exists"
-          effect: "NoSchedule"
       containers:
         - name: s3copy
           image: python:3.13-slim
