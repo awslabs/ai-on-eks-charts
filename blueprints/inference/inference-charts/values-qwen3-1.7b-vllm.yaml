@@ -1,0 +1,15 @@
+model: Qwen/Qwen3-1.7B
+
+modelParameters:
+  maxModelLen: 8192
+
+inference:
+  serviceName: qwen3-1-7b-vllm
+  serviceNamespace: default
+  accelerator: gpu
+  framework: vllm
+
+  modelServer:
+    image:
+      repository: vllm/vllm-openai
+      tag: v0.10.2
