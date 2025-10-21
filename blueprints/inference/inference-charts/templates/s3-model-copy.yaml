@@ -1,9 +1,9 @@
-{{- if  .Values.s3ModelCopy.model }}
+{{- if .Values.s3ModelCopy.model }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: s3-copy-configmap
-  namespace: {{.Values.s3ModelCopy.namespace}}
+  namespace: {{ .Values.s3ModelCopy.namespace }}
 data:
   script.sh: |
     #!/bin/bash
@@ -11,14 +11,11 @@ data:
     mkdir -p /app/download/$HUGGING_FACE_MODEL
     apt update && apt install -y curl unzip
     ARCH=$(uname -m)
-    if [ "$ARCH" = "x86_64" ]; then
-        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-2.31.16.zip" -o "awscliv2.zip"
-    elif [ "$ARCH" = "aarch64" ]; then
-        curl "https://awscli.amazonaws.com/awscli-exe-linux-aarch64-2.31.16.zip" -o "awscliv2.zip"
-    else
-        echo "Unsupported architecture: $ARCH"
+    if [ "$ARCH" != "x86_64" ] && [ "$ARCH" != "aarch64" ]; then
+        echo "Unsupported architecture: $ARCH. Only x86_64 and aarch64 are supported."
         exit 1
     fi
+    curl "https://awscli.amazonaws.com/awscli-exe-linux-${ARCH}-2.31.16.zip" -o "awscliv2.zip"
     unzip -q awscliv2.zip
     ./aws/install
     aws --version
@@ -30,7 +27,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: s3-copy
-  namespace: {{.Values.s3ModelCopy.namespace}}
+  namespace: {{ .Values.s3ModelCopy.namespace }}
 spec:
   template:
     spec:
@@ -51,9 +48,9 @@ spec:
             - name: HF_HUB_ENABLE_HF_TRANSFER
               value: "1"
             - name: HUGGING_FACE_MODEL
-              value: "{{ .Values.s3ModelCopy.model}}"
+              value: "{{ .Values.s3ModelCopy.model }}"
             - name: S3_PATH
-              value: "{{ .Values.s3ModelCopy.s3Path}}"
+              value: "{{ .Values.s3ModelCopy.s3Path }}"
           volumeMounts:
             - mountPath: /app/script.sh
               name: script
