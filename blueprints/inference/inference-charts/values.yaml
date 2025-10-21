@@ -132,6 +132,7 @@ s3ModelCopy:
   model:
   s3Path:
   namespace:
+  instanceType: # run the job on the specified instance
   serviceAccountName: # serviceAccountName to be used for model uploading to S3
 
 # serviceAccountName to use for deployments
