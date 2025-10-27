@@ -67,6 +67,7 @@ app.kubernetes.io/component: {{.Values.inference.serviceName}}
 {{- define "inference-charts.modelParameters" -}}
 {{- $modelParameters := .Values.modelParameters -}}
 {{- $args := list -}}
+{{ $tpsize := 1 -}}
 {{- range $key, $value := $modelParameters -}}
   {{- $args = append $args (printf "--%s %v" ($key | kebabcase) $value) -}}
 {{- end -}}
@@ -75,6 +76,14 @@ app.kubernetes.io/component: {{.Values.inference.serviceName}}
 {{- end }}
 {{- if .Values.vllm.loadFormat }}
     {{- $args = append $args (printf "--load-format %s" .Values.vllm.loadFormat ) }}
+{{- end}}
+{{- if not .Values.modelParameters.tensorParallelSize}}
+    {{- if eq .Values.inference.accelerator "neuron"}}
+        {{- $tpsize = mul (index .Values.inference.modelServer.deployment.resources.neuron.requests "aws.amazon.com/neuron") 2}}
+    {{- else }}
+        {{- $tpsize = (index .Values.inference.modelServer.deployment.resources.gpu.requests "nvidia.com/gpu")}}
+    {{- end }}
+    {{- $args = append $args (printf "--tensor-parallel-size %s" ($tpsize | toString) ) }}
 {{- end}}
 {{- printf "%s" (join " " $args) | trimSuffix " " -}}
 {{- end -}}
