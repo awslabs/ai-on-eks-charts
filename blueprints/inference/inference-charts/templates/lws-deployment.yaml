@@ -20,7 +20,7 @@ spec:
       spec:
         {{- if .Values.inference.modelServer.deployment.instanceType }}
         nodeSelector:
-          beta.kubernetes.io/instance-type: {{ .Values.inference.modelServer.deployment.instanceType }}
+          node.kubernetes.io/instance-type: {{ .Values.inference.modelServer.deployment.instanceType }}
         {{- end }}
         containers:
           - name: vllm-leader
@@ -59,7 +59,7 @@ spec:
       spec:
         {{- if .Values.inference.modelServer.deployment.instanceType }}
         nodeSelector:
-          beta.kubernetes.io/instance-type: {{ .Values.inference.modelServer.deployment.instanceType }}
+          node.kubernetes.io/instance-type: {{ .Values.inference.modelServer.deployment.instanceType }}
         {{- end }}
         containers:
           - name: vllm-worker
