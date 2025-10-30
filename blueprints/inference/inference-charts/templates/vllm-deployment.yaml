@@ -64,7 +64,7 @@ spec:
       {{- end }}
       {{- if .Values.inference.modelServer.deployment.instanceType }}
       nodeSelector:
-        beta.kubernetes.io/instance-type: {{ .Values.inference.modelServer.deployment.instanceType }}
+        node.kubernetes.io/instance-type: {{ .Values.inference.modelServer.deployment.instanceType }}
       {{- end }}
       {{- if and .Values.inference.modelServer.deployment.topologySpreadConstraints.enabled .Values.inference.modelServer.deployment.topologySpreadConstraints.constraints }}
       topologySpreadConstraints:
