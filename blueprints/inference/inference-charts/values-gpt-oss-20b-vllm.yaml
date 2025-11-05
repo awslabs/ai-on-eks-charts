@@ -13,7 +13,7 @@ inference:
     env:
       VLLM_ATTENTION_BACKEND: TRITON_ATTN_VLLM_V1
     image:
-      repository: vllm/vllm-openai
-      tag: v0.10.2
+      repository: public.ecr.aws/deep-learning-containers/vllm
+      tag: 0.11.0-gpu-py312
     deployment:
       instanceType: g6e.2xlarge
