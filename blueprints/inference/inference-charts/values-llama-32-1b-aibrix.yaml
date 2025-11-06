@@ -14,5 +14,5 @@ inference:
 
   modelServer:
     image:
-      repository: vllm/vllm-openai
-      tag: v0.9.1
+      repository: public.ecr.aws/deep-learning-containers/vllm
+      tag: 0.10.2-gpu-py312-ec2
