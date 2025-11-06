@@ -12,4 +12,4 @@ inference:
   modelServer:
     image:
       repository: public.ecr.aws/deep-learning-containers/vllm
-      tag: 0.11.0-gpu-py312
+      tag: 0.10.2-gpu-py312-ec2
