@@ -27,11 +27,11 @@ helm repo add ai-on-eks https://awslabs.github.io/ai-on-eks-charts/
 helm repo update
 ```
 
-2. Install a model (example with Llama 3.2 1B):
+2. Install a model (example with Qwen 3 1.7B):
 
 ```bash
-helm install llama-32-1b ai-on-eks/inference-charts \
-  -f charts/inference-charts/values-llama-32-1b-vllm.yaml
+helm install qwen3-1-7b ai-on-eks/inference-charts \
+  -f https://raw.githubusercontent.com/awslabs/ai-on-eks-charts/refs/heads/main/charts/inference-charts/values-qwen3-1.7b-vllm.yaml
 ```
 
 ## Available Models
