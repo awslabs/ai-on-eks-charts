@@ -1,4 +1,4 @@
-# AI Inference on EKS
+# AI on EKS Charts
 
 A comprehensive collection of Helm charts for deploying AI workloads on Amazon Elastic Kubernetes Service (EKS). This
 repository provides configurations for various AI models including large language models (LLMs), diffusion models, and
