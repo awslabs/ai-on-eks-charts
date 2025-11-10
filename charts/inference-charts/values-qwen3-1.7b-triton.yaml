@@ -1,0 +1,15 @@
+model: Qwen/Qwen3-1.7B
+
+modelParameters:
+  maxModelLen: 8192
+
+inference:
+  serviceName: qwen3-1-7b-triton
+  serviceNamespace: default
+  accelerator: gpu
+  framework: triton-vllm
+
+  modelServer:
+    image:
+      repository: nvcr.io/nvidia/tritonserver
+      tag: 25.06-vllm-python-py3
