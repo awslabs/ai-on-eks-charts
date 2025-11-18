@@ -1,0 +1,10 @@
+{{- if eq .Values.benchmark.scenario "baseline" }}
+✓ You've run the BASELINE test
+{{- else if eq .Values.benchmark.scenario "saturation" }}
+✓ You've run the SATURATION test
+{{- else if eq .Values.benchmark.scenario "sweep" }}
+✓ You've run the SWEEP test
+{{- else if eq .Values.benchmark.scenario "production" }}
+✓ You've completed all benchmark scenarios!
+{{- end }}
+→ Review your results and set SLAs based on the data collected
