@@ -1,0 +1,99 @@
+{{- if .Values.benchmark.enabled }}
+{{- $scenario := index .Values.benchmark.scenarios .Values.benchmark.scenario }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "benchmark-charts.fullname" . }}-{{ .Values.benchmark.scenario }}
+  namespace: {{ .Values.benchmark.namespace }}
+  labels:
+    {{- include "benchmark-charts.labels" . | nindent 4 }}
+    app.kubernetes.io/component: benchmark
+    benchmark.scenario: {{ .Values.benchmark.scenario }}
+  annotations:
+    benchmark.description: {{ $scenario.description | quote }}
+spec:
+  backoffLimit: {{ .Values.benchmark.job.backoffLimit }}
+  ttlSecondsAfterFinished: {{ .Values.benchmark.job.ttlSecondsAfterFinished }}
+  template:
+    metadata:
+      labels:
+        {{- include "benchmark-charts.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: benchmark
+        benchmark.scenario: {{ .Values.benchmark.scenario }}
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ .Values.benchmark.serviceAccountName }}
+      
+      {{- if .Values.benchmark.affinity.enabled }}
+      # Co-locate benchmark with inference pods for reproducible results
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                {{- range $key, $value := .Values.benchmark.affinity.targetLabels }}
+                {{ $key }}: {{ $value }}
+                {{- end }}
+            topologyKey: topology.kubernetes.io/zone
+      {{- end }}
+      
+      # InitContainer for model dependencies
+      initContainers:
+      - name: install-deps
+        image: {{ .Values.benchmark.image.repository }}:{{ .Values.benchmark.image.tag }}
+        imagePullPolicy: {{ .Values.benchmark.image.pullPolicy }}
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "Installing dependencies..."
+          pip install --target=/deps --no-cache-dir \
+          {{- range .Values.benchmark.dependencies.packages }}
+            {{ . | quote }} \
+          {{- end }}
+            && echo "Dependencies installed successfully" \
+            && ls -la /deps
+        volumeMounts:
+        - name: python-deps
+          mountPath: /deps
+        resources:
+          {{- toYaml .Values.benchmark.resources.init | nindent 10 }}
+      
+      # Main container
+      containers:
+      - name: inference-perf
+        image: {{ .Values.benchmark.image.repository }}:{{ .Values.benchmark.image.tag }}
+        imagePullPolicy: {{ .Values.benchmark.image.pullPolicy }}
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          export PYTHONPATH=/deps:$PYTHONPATH
+          echo "PYTHONPATH: $PYTHONPATH"
+          echo "=========================================="
+          echo "Starting {{ .Values.benchmark.scenario | upper }} Performance Test"
+          echo "Description: {{ $scenario.description }}"
+          echo "Target: {{ .Values.benchmark.target.baseUrl }}"
+          echo "Model: {{ .Values.benchmark.target.modelName }}"
+          echo "=========================================="
+          inference-perf --config_file /workspace/config.yml
+        env:
+        - name: PYTHONPATH
+          value: "/deps"
+        - name: BENCHMARK_SCENARIO
+          value: {{ .Values.benchmark.scenario | quote }}
+        volumeMounts:
+        - name: config
+          mountPath: /workspace/config.yml
+          subPath: config.yml
+        - name: python-deps
+          mountPath: /deps
+        resources:
+          {{- toYaml .Values.benchmark.resources.main | nindent 10 }}
+      
+      volumes:
+      - name: config
+        configMap:
+          name: {{ include "benchmark-charts.fullname" . }}-{{ .Values.benchmark.scenario }}
+      - name: python-deps
+        emptyDir: {}
+{{- end }}
