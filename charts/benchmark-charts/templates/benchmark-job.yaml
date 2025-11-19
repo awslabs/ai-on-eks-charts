@@ -23,7 +23,7 @@ spec:
         benchmark.scenario: {{ .Values.benchmark.scenario }}
     spec:
       restartPolicy: Never
-      serviceAccountName: {{ .Values.benchmark.serviceAccountName }}
+      serviceAccountName: {{ .Values.benchmark.serviceAccount.name }}
       
       {{- if .Values.benchmark.affinity.enabled }}
       # Co-locate benchmark with inference pods for reproducible results

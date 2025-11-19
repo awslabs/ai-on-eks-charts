@@ -60,7 +60,7 @@ benchmark:
     # For other models, adjust accordingly
     packages:
       - "sentencepiece==0.2.0"
-      - "protobuf==5"
+      - "protobuf==5.29.2"
   
   # Resource allocation for benchmark pods
   resources:
