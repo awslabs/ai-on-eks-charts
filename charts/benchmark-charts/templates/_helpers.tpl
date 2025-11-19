@@ -1,4 +1,3 @@
-this is the current   helper file.  I want the chart to be called  benchmark-charts.
 {{/*
 Expand the name of the chart.
 */}}
