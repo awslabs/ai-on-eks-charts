@@ -1,10 +1,11 @@
-{{- if eq .Values.benchmark.scenario "baseline" }}
-✓ You've run the BASELINE test
-{{- else if eq .Values.benchmark.scenario "saturation" }}
-✓ You've run the SATURATION test
-{{- else if eq .Values.benchmark.scenario "sweep" }}
-✓ You've run the SWEEP test
-{{- else if eq .Values.benchmark.scenario "production" }}
-✓ You've completed all benchmark scenarios!
+Benchmark job deployed: {{ .Values.benchmark.scenario | upper }}
+
+Target: {{ .Values.benchmark.target.baseUrl }}
+Model: {{ .Values.benchmark.target.modelName }}
+
+To monitor:
+  kubectl logs -n {{ .Values.benchmark.namespace }} -l benchmark.scenario={{ .Values.benchmark.scenario }} -f
+
+{{- if .Values.benchmark.storage.s3.bucketName }}
+Results: s3://{{ .Values.benchmark.storage.s3.bucketName }}/{{ .Values.benchmark.storage.s3.pathPrefix }}
 {{- end }}
-→ Review your results and set SLAs based on the data collected

@@ -1,5 +1,4 @@
 # Default values for benchmark-charts
-# This is a YAML-formatted file.
 
 # Benchmarking Configuration
 benchmark:
@@ -34,11 +33,11 @@ benchmark:
     # Server type: vllm, openai, etc.
     serverType: vllm
     # Model name identifier
-    modelName: qwen-1.7b
+    modelName: mistral-7b
     # Full URL to the inference endpoint
-    baseUrl: http://qwen-vllm.vllm-benchmark:8000
+    baseUrl: http://mistral-vllm.vllm-benchmark:8000
     # Tokenizer model path (Hugging Face model ID)
-    tokenizerPath: Qwen/Qwen2.5-1.5B-Instruct
+    tokenizerPath: mistralai/Mistral-7B-Instruct-v0.3
     # Ignore EOS tokens
     ignoreEos: true
   
