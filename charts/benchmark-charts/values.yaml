@@ -84,8 +84,10 @@ benchmark:
   affinity:
     enabled: true
     # Label selector to find inference pods
+    # NOTE: Update this to match your actual deployment's pod labels
+    # Common patterns: app: <name>, app.kubernetes.io/name: <name>
     targetLabels:
-      app.kubernetes.io/component: mistral-vllm
+      app: mistral-vllm
   
   # Scenario-specific configurations
   scenarios:

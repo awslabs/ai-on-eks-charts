@@ -37,8 +37,13 @@ spec:
                 {{- end }}
             topologyKey: topology.kubernetes.io/zone
       {{- end }}
-      
-      # InitContainer for model dependencies
+
+      # Dependency Installation Strategy:
+      # This chart uses init-containers to pre-install Python dependencies before the main container starts.
+      # Benefits: Faster container restarts, cleaner separation of concerns
+      # Alternative: Runtime installation (install deps in main container startup)
+      #   - Simpler for quick testing/experimentation
+      #   - See documentation for examples: docs/guidance/benchmarking/4-test-scenarios/
       initContainers:
       - name: install-deps
         image: {{ .Values.benchmark.image.repository }}:{{ .Values.benchmark.image.tag }}
