@@ -39,32 +39,10 @@ spec:
       {{- end }}
 
       # Dependency Installation Strategy:
-      # This chart uses init-containers to pre-install Python dependencies before the main container starts.
-      # Benefits: Faster container restarts, cleaner separation of concerns
-      # Alternative: Runtime installation (install deps in main container startup)
-      #   - Simpler for quick testing/experimentation
-      #   - See documentation for examples: docs/guidance/benchmarking/4-test-scenarios/
-      initContainers:
-      - name: install-deps
-        image: {{ .Values.benchmark.image.repository }}:{{ .Values.benchmark.image.tag }}
-        imagePullPolicy: {{ .Values.benchmark.image.pullPolicy }}
-        command: ["/bin/sh", "-c"]
-        args:
-        - |
-          echo "Installing dependencies..."
-          pip install --target=/deps --no-cache-dir \
-          {{- range .Values.benchmark.dependencies.packages }}
-            {{ . | quote }} \
-          {{- end }}
-            && echo "Dependencies installed successfully" \
-            && ls -la /deps
-        volumeMounts:
-        - name: python-deps
-          mountPath: /deps
-        resources:
-          {{- toYaml .Values.benchmark.resources.init | nindent 10 }}
-      
-      # Main container
+      # Runtime installation - dependencies are installed in the main container at startup
+      # This approach provides flexibility and simplicity for testing and experimentation
+      # For production with faster startup, consider building a custom image with pre-installed dependencies
+
       containers:
       - name: inference-perf
         image: {{ .Values.benchmark.image.repository }}:{{ .Values.benchmark.image.tag }}
@@ -72,8 +50,12 @@ spec:
         command: ["/bin/sh", "-c"]
         args:
         - |
-          export PYTHONPATH=/deps:$PYTHONPATH
-          echo "PYTHONPATH: $PYTHONPATH"
+          echo "Installing dependencies..."
+          pip install --no-cache-dir \
+          {{- range .Values.benchmark.dependencies.packages }}
+            {{ . | quote }} \
+          {{- end }}
+            && echo "Dependencies installed successfully"
           echo "=========================================="
           echo "Starting {{ .Values.benchmark.scenario | upper }} Performance Test"
           echo "Description: {{ $scenario.description }}"
@@ -82,23 +64,17 @@ spec:
           echo "=========================================="
           inference-perf --config_file /workspace/config.yml
         env:
-        - name: PYTHONPATH
-          value: "/deps"
         - name: BENCHMARK_SCENARIO
           value: {{ .Values.benchmark.scenario | quote }}
         volumeMounts:
         - name: config
           mountPath: /workspace/config.yml
           subPath: config.yml
-        - name: python-deps
-          mountPath: /deps
         resources:
-          {{- toYaml .Values.benchmark.resources.main | nindent 10 }}
+          {{- toYaml .Values.benchmark.resources | nindent 10 }}
       
       volumes:
       - name: config
         configMap:
           name: {{ include "benchmark-charts.fullname" . }}-{{ .Values.benchmark.scenario }}
-      - name: python-deps
-        emptyDir: {}
 {{- end }}

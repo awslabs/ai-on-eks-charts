@@ -34,11 +34,11 @@ benchmark:
     # Server type: vllm, openai, etc.
     serverType: vllm
     # Model name identifier
-    modelName: mistral-7b
+    modelName: qwen-1.7b
     # Full URL to the inference endpoint
-    baseUrl: http://mistral-vllm.vllm-benchmark:8000
+    baseUrl: http://qwen-vllm.vllm-benchmark:8000
     # Tokenizer model path (Hugging Face model ID)
-    tokenizerPath: mistralai/Mistral-7B-Instruct-v0.3
+    tokenizerPath: Qwen/Qwen2.5-1.5B-Instruct
     # Ignore EOS tokens
     ignoreEos: true
   
@@ -64,20 +64,12 @@ benchmark:
   
   # Resource allocation for benchmark pods
   resources:
-    init:
-      requests:
-        cpu: "500m"
-        memory: "512Mi"
-      limits:
-        cpu: "1"
-        memory: "1Gi"
-    main:
-      requests:
-        cpu: "2"
-        memory: "4Gi"
-      limits:
-        cpu: "4"
-        memory: "8Gi"
+    requests:
+      cpu: "2"
+      memory: "4Gi"
+    limits:
+      cpu: "4"
+      memory: "8Gi"
   
   # Co-location configuration
   # Benchmark pods will be scheduled in the same zone as inference pods
