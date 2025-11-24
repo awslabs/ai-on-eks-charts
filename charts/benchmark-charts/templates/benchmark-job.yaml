@@ -50,12 +50,14 @@ spec:
         command: ["/bin/sh", "-c"]
         args:
         - |
+          {{- if .Values.benchmark.dependencies.packages }}
           echo "Installing dependencies..."
           pip install --no-cache-dir \
           {{- range .Values.benchmark.dependencies.packages }}
             {{ . | quote }} \
           {{- end }}
             && echo "Dependencies installed successfully"
+          {{- end }}
           echo "=========================================="
           echo "Starting {{ .Values.benchmark.scenario | upper }} Performance Test"
           echo "Description: {{ $scenario.description }}"
