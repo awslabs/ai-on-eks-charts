@@ -35,7 +35,7 @@ benchmark:
     # Model name identifier
     modelName: qwen3-8b
     # Full URL to the inference endpoint
-    baseUrl: http://qwen3-vllm.vllm-benchmark:8000
+    baseUrl: http://qwen3-vllm.default:8000
     # Tokenizer model path (Hugging Face model ID)
     tokenizerPath: Qwen/Qwen3-8B
     # Ignore EOS tokens
