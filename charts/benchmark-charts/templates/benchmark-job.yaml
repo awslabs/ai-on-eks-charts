@@ -26,7 +26,7 @@ spec:
       serviceAccountName: {{ .Values.benchmark.serviceAccount.name }}
       
       {{- if .Values.benchmark.affinity.enabled }}
-      # Co-locate benchmark with inference pods for reproducible results
+      # Same-AZ placement with inference pods for reproducible results
       affinity:
         podAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
