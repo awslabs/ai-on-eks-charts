@@ -9,7 +9,7 @@ modelParameters:
   tensorParallelSize: 4
 
 inference:
-  serviceName: mistral-small-24B-instruct-2501-ray-vllm
+  serviceName: mistral-small-24b-instruct-2501-ray-vllm
   serviceNamespace: default
   accelerator: gpu
   framework: ray-vllm
@@ -22,7 +22,7 @@ inference:
     pythonVersion: 3.11
     image:
       repository: rayproject/ray
-      tag: 2.46.0-py3.11
+      tag: 2.46.0-py311
     deployment:
       resources:
         gpu:
