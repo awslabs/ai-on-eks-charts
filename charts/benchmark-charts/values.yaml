@@ -4,30 +4,30 @@
 benchmark:
   # Enable benchmarking
   enabled: true
-  
+
   # Namespace for benchmark jobs
   namespace: benchmarking
-  
+
   # Benchmark image configuration
   image:
     repository: quay.io/inference-perf/inference-perf
     tag: v0.2.0
     pullPolicy: IfNotPresent
-  
+
   # Service account for benchmark jobs
   serviceAccount:
     create: true
     name: inference-perf-sa
     annotations: []
-  
+
   # Scenario selection: baseline, saturation, sweep, or production
   scenario: baseline
-  
+
   # Job configuration
   job:
     backoffLimit: 2
     ttlSecondsAfterFinished: 3600
-  
+
   # Target inference server configuration
   target:
     # Server type: vllm, openai, etc.
@@ -40,25 +40,25 @@ benchmark:
     tokenizerPath: Qwen/Qwen3-8B
     # Ignore EOS tokens
     ignoreEos: true
-  
+
   # API configuration
   api:
     type: completion
     streaming: true
-  
+
   # Storage configuration for results
   storage:
     s3:
       bucketName: "inference-perf-results"
       # Path supports {timestamp} placeholder
       pathPrefix: "benchmark-results"
-  
+
   # Model dependencies to install
   dependencies:
     # For Mistral/Llama models: sentencepiece and protobuf
     # Qwen3 uses tiktoken (included) - no additional packages needed
     packages: []
-  
+
   # Resource allocation for benchmark pods
   resources:
     requests:
@@ -67,7 +67,7 @@ benchmark:
     limits:
       cpu: "4"
       memory: "8Gi"
-  
+
   # Co-location configuration
   # Benchmark pods will be scheduled in the same zone as inference pods
   affinity:
@@ -77,7 +77,7 @@ benchmark:
     # Common patterns: app: <name>, app.kubernetes.io/name: <name>
     targetLabels:
       app: qwen3-vllm
-  
+
   # Scenario-specific configurations
   scenarios:
     # SCENARIO 1: Baseline Performance
@@ -100,7 +100,7 @@ benchmark:
         stages:
           - rate: 1
             duration: 300
-    
+
     # SCENARIO 2: Saturation Testing
     saturation:
       description: "Determine maximum sustainable throughput"
@@ -127,7 +127,7 @@ benchmark:
             duration: 180
           - rate: 40
             duration: 180
-    
+
     # SCENARIO 3: Automatic Saturation Detection
     sweep:
       description: "Automated capacity discovery with intelligent staging"
@@ -153,7 +153,7 @@ benchmark:
           numStages: 5
           stageDuration: 180
           saturationPercentile: 95
-    
+
     # SCENARIO 4: Production Simulation
     production:
       description: "Realistic traffic with variable sizes and bursty arrivals"

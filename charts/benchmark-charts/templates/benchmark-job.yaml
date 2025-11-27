@@ -24,7 +24,7 @@ spec:
     spec:
       restartPolicy: Never
       serviceAccountName: {{ .Values.benchmark.serviceAccount.name }}
-      
+
       {{- if .Values.benchmark.affinity.enabled }}
       # Same-AZ placement with inference pods for reproducible results
       affinity:
@@ -74,7 +74,7 @@ spec:
           subPath: config.yml
         resources:
           {{- toYaml .Values.benchmark.resources | nindent 10 }}
-      
+
       volumes:
       - name: config
         configMap:

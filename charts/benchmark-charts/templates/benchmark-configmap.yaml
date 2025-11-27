@@ -15,7 +15,7 @@ data:
     api:
       type: {{ .Values.benchmark.api.type }}
       streaming: {{ .Values.benchmark.api.streaming }}
-    
+
     data:
       type: synthetic
       input_distribution:
@@ -28,7 +28,7 @@ data:
         std_dev: {{ $scenario.data.output.stdDev }}
         min: {{ $scenario.data.output.min }}
         max: {{ $scenario.data.output.max }}
-    
+
     load:
       type: {{ $scenario.load.type }}
       {{- if $scenario.load.stages }}
@@ -50,16 +50,16 @@ data:
         saturation_percentile: {{ $scenario.load.sweep.saturationPercentile }}
       {{- end }}
       num_workers: {{ $scenario.load.numWorkers }}
-    
+
     server:
       type: {{ .Values.benchmark.target.serverType }}
       model_name: {{ .Values.benchmark.target.modelName }}
       base_url: {{ .Values.benchmark.target.baseUrl }}
       ignore_eos: {{ .Values.benchmark.target.ignoreEos }}
-    
+
     tokenizer:
       pretrained_model_name_or_path: {{ .Values.benchmark.target.tokenizerPath }}
-    
+
     storage:
       simple_storage_service:
         bucket_name: {{ .Values.benchmark.storage.s3.bucketName | quote }}
