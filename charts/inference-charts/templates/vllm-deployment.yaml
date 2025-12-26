@@ -57,6 +57,7 @@ spec:
           startupProbe:
             {{- toYaml .Values.inference.modelServer.deployment.startupProbe | nindent 12 }}
       {{- if eq .Values.inference.accelerator "neuron" }}
+      schedulerName: my-scheduler
       tolerations:
         - key: "aws.amazon.com/neuron"
           operator: "Exists"
