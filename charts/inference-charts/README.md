@@ -15,13 +15,14 @@ The chart supports the following deployment types:
 - GPU-based AIBrix deployments
 - GPU-based LeaderWorkerSet-VLLM deployments
 - GPU-based Diffusers deployments
+- GPU-based NVIDIA NIM deployments
 - Neuron-based VLLM deployments
 - Neuron-based Ray-VLLM deployments
 - Neuron-based Triton-VLLM deployments (Coming Soon)
 - Ray-VLLM deployments with (optional) GCS High Availability
 - S3 Model Copy jobs for downloading models from Hugging Face to S3
 
-### VLLM vs Ray-VLLM vs LeaderWorkerSet-VLLM
+### VLLM vs Ray-VLLM vs LeaderWorkerSet-VLLM vs NIM
 
 **VLLM Deployments** (`framework: vllm`):
 
@@ -45,6 +46,17 @@ The chart supports the following deployment types:
 - Uses `vllm/vllm-openai` image
 - Includes additional model labels for AIBrix integration
 - Suitable for AIBrix-managed inference workloads
+
+**NVIDIA NIM Deployments** (`framework: nim`):
+
+- NVIDIA Inference Microservices for optimized model serving
+- Pre-built, optimized containers from NVIDIA NGC catalog
+- Uses `nvcr.io/nim/*` images
+- Includes TensorRT optimizations for specific GPU types
+- Requires NGC API key for image pull and runtime
+- Supports persistent cache for model artifacts
+- Longer startup time (20-30 minutes) for model optimization
+- Best for production deployments requiring maximum performance
 
 **Triton-VLLM Deployments** (`framework: triton-vllm`):
 
@@ -94,6 +106,21 @@ Before installing the chart, create a Kubernetes secret with your Hugging Face t
 kubectl create secret generic hf-token --from-literal=token=your_huggingface_token
 ```
 
+### Create NGC Token secret for model access (for NIM deployments)
+
+```bash
+kubectl create secret generic ngc-api --from-literal=NGC_API_KEY=your_ngc_api_key
+```
+
+### Create NGC Docker registry credentials (for NIM deployments)
+
+```bash
+kubectl create secret docker-registry ngc-secret \
+  --docker-server=nvcr.io \
+  --docker-username='$oauthtoken' \
+  --docker-password=your_ngc_api_key
+```
+
 ## Configuration
 
 The following table lists the configurable parameters of the inference-charts chart and their default values.
@@ -102,7 +129,7 @@ The following table lists the configurable parameters of the inference-charts ch
 |--------------------------------------------------------------------------|-------------------------------------------------------------------------------------|-----------------------------------------------------------------------------|
 | `global.image.pullPolicy`                                                | Global image pull policy                                                            | `IfNotPresent`                                                              |
 | `inference.accelerator`                                                  | Accelerator type to use (gpu or neuron)                                             | `gpu`                                                                       |
-| `inference.framework`                                                    | Framework type to use (vllm, ray-vllm, triton-vllm, aibrix, lws-vllm, or diffusers) | `vllm`                                                                      |
+| `inference.framework`                                                    | Framework type to use (vllm, ray-vllm, triton-vllm, aibrix, lws-vllm,  diffusers, or nim) | `vllm`                                                                      |
 | `inference.serviceName`                                                  | Name of the inference service                                                       | `inference`                                                                 |
 | `inference.serviceNamespace`                                             | Namespace for the inference service                                                 | `default`                                                                   |
 | `inference.modelServer.image.repository`                                 | Model server image repository                                                       | `vllm/vllm-openai`                                                          |
@@ -198,6 +225,11 @@ The chart includes pre-configured values files for the following models:
 - **Stable Diffusion XL Base 1.0**: `values-stable-diffusion-xl-base-1-diffusers.yaml` (Diffusers)
 - **Latent Diffusion**: `values-latent-diffusion-diffusers.yaml` (Diffusers)
 - **OmniGen**: `values-omni-gen-diffusers.yaml` (Diffusers)
+
+#### NVIDIA NIM Models
+
+- **Llama 3.1 8B Instruct**: `values-llama-31-8b-nim.yaml` (NIM)
+- **Stable Diffusion 3.5 Large**: `values-stable-diffusion-3.5-large-diffusers-nim.yaml` (NIM)
 
 ### Neuron Models
 
@@ -566,6 +598,125 @@ helm install omnigen-diffusers ./inference-charts --values values-omni-gen-diffu
 ```bash
 helm install latent-diffusion ./inference-charts --values values-latent-diffusion-diffusers.yaml
 ```
+
+### NVIDIA NIM Examples
+
+#### Prerequisites for NIM Deployments
+
+Before deploying NIM, create the required secrets:
+
+```bash
+# NGC API Key - visit https://catalog.ngc.nvidia.com/ to generate NGC keys
+kubectl create secret generic ngc-api \
+  --from-literal=NGC_API_KEY=<your-ngc-api-key> \
+  -n default
+
+# Hugging Face Token
+kubectl create secret generic hf-token \
+  --from-literal=HF_TOKEN=<your-hf-token> \
+  -n default
+
+# NGC Docker Registry Secret (for pulling NIM images)
+kubectl create secret docker-registry ngc-secret \
+  --docker-server=nvcr.io \
+  --docker-username='$oauthtoken' \
+  --docker-password=<your-ngc-api-key> \
+  -n default
+```
+
+#### Deploy NIM Llama 3.1 8B Instruct (LLM)
+
+```bash
+helm install nim-llama-31-8b ./inference-charts --values values-llama-3-8b-instruct-nim
+```
+
+**Test the LLM:**
+```bash
+# Port forward
+kubectl port-forward svc/nim-llama-31-8b 8000:8000
+
+# Test chat completion
+curl -X POST http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "meta/llama3-8b-instruct",
+    "messages": [{"role": "user", "content": "What is AI?"}],
+    "max_tokens": 100
+  }'
+```
+
+#### Deploy NIM Stable Diffusion 3.5 Large (Image Generation)
+
+```bash
+helm install nim-sd-large ./inference-charts --values values-stable-diffusion-3.5-large-diffusers-nim.yaml
+```
+
+**Test image generation:**
+```bash
+# Port forward
+kubectl port-forward svc/nim-sd-35-large 8000:8000
+
+# Test inference
+curl -X POST http://localhost:8000/v1/infer \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "A beautiful sunset over mountains",
+    "num_inference_steps": 50
+  }'
+```
+
+**Disable Safety Checker (for image generation)**
+
+To disable the safety checker in NIM SD3.5 Large, you need to set the environment variable (already enabled by default) via:
+```yaml
+nim:
+  env:
+    NIM_ALLOW_UNCHECKED_GENERATION: "true"
+```
+
+Then in your API request:
+```json
+{
+  "prompt": "your prompt",
+  "disable_safety_checker": true
+}
+```
+
+**Note**: 
+- **LLM NIMs** (like Llama) take 10-15 minutes to become ready
+- **Diffusion NIMs** (like Stable Diffusion) take 20-30 minutes to become ready
+- Monitor progress with: `kubectl logs -f deployment/<service-name> -n default`
+
+**Comparison: NIM vs Diffusers**
+
+| Feature | NIM | Diffusers |
+|---------|-----|-----------|
+| Setup | Pre-optimized, pull and run | Requires optimization |
+| Performance | Maximum (TensorRT) | Good (PyTorch) |
+| Startup Time | 20-30 minutes | 5-10 minutes |
+| GPU Support | Specific models (L40S, A10G) | Any GPU |
+| Cost | NGC license required | Free |
+| Customization | Limited | Full control |
+| Production Ready | Yes | Requires tuning |
+
+**Use NIM when:**
+- You need maximum performance
+- You're deploying to production
+- You have NGC access
+- You're using supported GPUs (L40S, A10G, etc.)
+
+**Use Diffusers when:**
+- You need flexibility
+- You're experimenting/developing
+- You want to customize the pipeline
+- You're using unsupported GPUs
+
+**Additional Resources**
+
+- [NVIDIA NIM Documentation](https://docs.nvidia.com/nim/)
+- [NGC Catalog](https://catalog.ngc.nvidia.com/) 
+- [Stable Diffusion NIM Guide](https://docs.nvidia.com/nim/visual-genai/)
+- [Main README](./README.md)
 
 ### S3 Model Copy Examples
 

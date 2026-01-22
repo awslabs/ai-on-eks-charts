@@ -1,0 +1,145 @@
+# NVIDIA NIM Stable Diffusion 3.5 Large
+# Optimized for L40S GPUs (g6e.12xlarge instances)
+
+# NIM doesn't use the model parameter the same way - it's baked into the container
+model: stabilityai/stable-diffusion-3.5-large
+
+inference:
+  serviceName: nim-sd-35-large
+  serviceNamespace: default # Recommended: Move to a dedicated namespace (e.g., 'nim') to ensure service isolation.
+  accelerator: gpu
+  framework: nim
+
+  modelServer:
+    image:
+      repository: nvcr.io/nim/stabilityai/stable-diffusion-3.5-large
+      tag: latest
+    
+    deployment:
+      replicas: 1
+      instanceType: g6e.4xlarge  # L40S instance
+      
+      resources:
+        gpu:
+          requests:
+            cpu: "8"
+            memory: "64Gi"
+            nvidia.com/gpu: "1"
+          limits:
+            cpu: "16"
+            memory: "128Gi"
+            nvidia.com/gpu: "1"
+      
+      # NIM-specific configuration
+      nim:
+        # Persistent volume for model cache 
+        # critical for performance - prevents repeated model loading
+        persistence:
+          enabled: true
+          size: 500Gi
+          storageClassName: ""  # Use default storage class
+          claimName: nim-cache-pvc
+        
+        # Init containers for cache cleanup & management
+        # recommended for issues with model caching
+        initContainers:
+          fixPermissions:
+            enabled: true
+            image: busybox:1.35
+          clearTrtCache:
+            enabled: true
+            image: busybox:1.35
+        
+        # NIM environment variables
+        env:
+          # For full list: https://docs.nvidia.com/nim/visual-genai/1.0.0/configuration.html
+          NIM_MODEL_NAME: "stable-diffusion-3.5-large"
+          NIM_ALLOW_UNCHECKED_GENERATION: "true" #use "disable_safety_checker" in request
+          NIM_MODEL_VARIANT: "base"
+          NVIDIA_VISIBLE_DEVICES: "all"
+          NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
+          NIM_CACHE_PATH: "/opt/nim/.cache"
+          FORCE_REBUILD_ENGINES: "true"
+        
+        # Security context
+        securityContext:
+          capabilities:
+            add: ["SYS_ADMIN"]
+          runAsUser: 1000
+          runAsGroup: 1000
+        
+        podSecurityContext:
+          fsGroup: 1000
+          runAsUser: 1000
+          runAsGroup: 1000
+        
+        # Shared memory configuration
+        shm:
+          enabled: true
+          medium: Memory
+          sizeLimit: 1Gi
+        
+        # Health probes (NIM takes 20-30 minutes to start)
+        livenessProbe:
+          httpGet:
+            path: /v1/health/live
+            port: 8000
+          initialDelaySeconds: 1800
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        
+        readinessProbe:
+          httpGet:
+            path: /v1/health/ready
+            port: 8000
+          # High initial delay due to potential model loading
+          # If using a preloaded model (e.g. from a pre-loaded volume), this can be much lower
+          initialDelaySeconds: 1800
+          periodSeconds: 10
+          timeoutSeconds: 10
+          failureThreshold: 3
+        
+        # NGC and HF secrets
+        secrets:
+          ngcApiKey:
+            name: ngc-api
+            key: NGC_API_KEY
+          hfToken:
+            name: hf-token
+            key: HF_TOKEN
+      
+      # Optimized for SD 3.5: Lovelace (L), Hopper (H), and Blackwell (B) architectures.
+      # g6e instances utilize L40S (Lovelace) GPUs.
+      nodeSelector:
+        karpenter.sh/nodepool: g6e-nvidia
+      
+      # Tolerations
+      tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+        - key: "karpenter.sh/nodepool"
+          operator: "Equal"
+          value: "g6e-nvidia"
+          effect: "NoSchedule"
+      
+      # Pod annotations
+      annotations:
+        karpenter.sh/do-not-evict: "true"
+      
+      # Affinity - prefer on-demand instances, adjust as needed
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: karpenter.sh/capacity-type
+                    operator: In
+                    values:
+                      - on-demand
+
+# Image pull secrets for NGC registry
+imagePullSecrets:
+  - name: ngc-secret
