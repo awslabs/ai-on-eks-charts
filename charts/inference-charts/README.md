@@ -601,6 +601,8 @@ helm install latent-diffusion ./inference-charts --values values-latent-diffusio
 
 ### NVIDIA NIM Examples
 
+> **Note:** To set up a NIM-enabled EKS cluster, use the installation script available at: https://github.com/awslabs/ai-on-eks/tree/main/infra/nvidia-nim
+
 #### Prerequisites for NIM Deployments
 
 Before deploying NIM, create the required secrets:
@@ -682,10 +684,11 @@ Then in your API request:
 }
 ```
 
-**Note**: 
+**Note**:
 - **LLM NIMs** (like Llama) take 10-15 minutes to become ready
 - **Diffusion NIMs** (like Stable Diffusion) take 20-30 minutes to become ready
 - Monitor progress with: `kubectl logs -f deployment/<service-name> -n default`
+- To prevent pod eviction by Karpenter during long startup times, add the annotation `karpenter.sh/do-not-evict: "true"` to `podTemplate.annotations` in your values file
 
 **Comparison: NIM vs Diffusers**
 
@@ -714,7 +717,7 @@ Then in your API request:
 **Additional Resources**
 
 - [NVIDIA NIM Documentation](https://docs.nvidia.com/nim/)
-- [NGC Catalog](https://catalog.ngc.nvidia.com/) 
+- [NGC Catalog](https://catalog.ngc.nvidia.com/)
 - [Stable Diffusion NIM Guide](https://docs.nvidia.com/nim/visual-genai/)
 - [Main README](./README.md)
 

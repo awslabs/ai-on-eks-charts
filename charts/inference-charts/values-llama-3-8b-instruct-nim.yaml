@@ -14,11 +14,11 @@ inference:
     image:
       repository: nvcr.io/nim/meta/llama3-8b-instruct
       tag: latest
-    
+
     deployment:
       replicas: 1
       instanceType: g6e.2xlarge  # 1 GPU instance suitable for 8B model
-      
+
       resources:
         gpu:
           requests:
@@ -29,27 +29,9 @@ inference:
             cpu: "8"
             memory: "64Gi"
             nvidia.com/gpu: "1"
-      
+
       # NIM-specific configuration
       nim:
-        # Persistent volume for model cache 
-        # critical for performance - prevents repeated model loading
-        persistence:
-          enabled: true
-          size: 200Gi  # Llama 3 8B requires less storage than SD models
-          storageClassName: ""  # Use default storage class
-          claimName: nim-cache-pvc
-        
-        # Init containers for cache cleanup & management
-        # recommended for issues with model caching
-        initContainers:
-          fixPermissions:
-            enabled: true
-            image: busybox:1.35
-          clearTrtCache:
-            enabled: true
-            image: busybox:1.35
-        
         # NIM environment variables for LLM
         env:
           # For full list: https://docs.nvidia.com/nim/large-language-models/latest/configuration.html
@@ -60,25 +42,25 @@ inference:
           # LLM-specific settings
           NIM_MAX_MODEL_LEN: "4096"  # Maximum sequence length
           NIM_TENSOR_PARALLEL_SIZE: "1"  # Number of GPUs for tensor parallelism
-        
+
         # Security context
         securityContext:
           capabilities:
             add: ["SYS_ADMIN"]
           runAsUser: 1000
           runAsGroup: 1000
-        
+
         podSecurityContext:
           fsGroup: 1000
           runAsUser: 1000
           runAsGroup: 1000
-        
+
         # Shared memory configuration
         shm:
           enabled: true
           medium: Memory
           sizeLimit: 1Gi
-        
+
         # Health probes (NIM LLM takes 10-15 minutes to start)
         livenessProbe:
           httpGet:
@@ -88,7 +70,7 @@ inference:
           periodSeconds: 30
           timeoutSeconds: 10
           failureThreshold: 3
-        
+
         readinessProbe:
           httpGet:
             path: /v1/health/ready
@@ -98,7 +80,7 @@ inference:
           periodSeconds: 10
           timeoutSeconds: 10
           failureThreshold: 3
-        
+
         # NGC and HF secrets
         secrets:
           ngcApiKey:
@@ -107,13 +89,13 @@ inference:
           hfToken:
             name: hf-token
             key: HF_TOKEN
-      
+
       # Optimized for Llama 3: Works on Ampere (A), Lovelace (L), Hopper (H), and Blackwell (B) architectures.
       # g6e instances utilize L40S (Lovelace) GPUs.
       # For 8B model, g6e.2xlarge (1 GPU) is sufficient
       nodeSelector:
         karpenter.sh/nodepool: g6e-nvidia
-      
+
       # Tolerations
       tolerations:
         - key: "nvidia.com/gpu"
@@ -123,11 +105,10 @@ inference:
           operator: "Equal"
           value: "g6e-nvidia"
           effect: "NoSchedule"
-      
+
       # Pod annotations
-      annotations:
-        karpenter.sh/do-not-evict: "true"
-      
+      annotations: {}
+
       # Affinity - prefer on-demand instances, adjust as needed
       affinity:
         nodeAffinity:
@@ -139,6 +120,9 @@ inference:
                     operator: In
                     values:
                       - on-demand
+        podAffinity:
+          enabled: true
+          requiredDuringSchedulingIgnoredDuringExecution: true
 
 # Image pull secrets for NGC registry
 imagePullSecrets:

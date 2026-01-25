@@ -1,21 +1,4 @@
 {{- if eq .Values.inference.framework "nim" }}
-{{- if .Values.inference.modelServer.deployment.nim.persistence.enabled }}
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {{ .Values.inference.modelServer.deployment.nim.persistence.claimName }}
-  namespace: {{ .Values.inference.serviceNamespace }}
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: {{ .Values.inference.modelServer.deployment.nim.persistence.size }}
-  {{- if .Values.inference.modelServer.deployment.nim.persistence.storageClassName }}
-  storageClassName: {{ .Values.inference.modelServer.deployment.nim.persistence.storageClassName }}
-  {{- end }}
----
-{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -48,27 +31,6 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      initContainers:
-      {{- if .Values.inference.modelServer.deployment.nim.initContainers.fixPermissions.enabled }}
-      - name: fix-permissions
-        image: {{ .Values.inference.modelServer.deployment.nim.initContainers.fixPermissions.image }}
-        command: ['sh', '-c', 'chown -R 1000:1000 /opt/nim/.cache && chmod -R 755 /opt/nim/.cache']
-        volumeMounts:
-        - name: cache
-          mountPath: /opt/nim/.cache
-        securityContext:
-          runAsUser: 0
-      {{- end }}
-      {{- if .Values.inference.modelServer.deployment.nim.initContainers.clearTrtCache.enabled }}
-      - name: clear-trt-cache
-        image: {{ .Values.inference.modelServer.deployment.nim.initContainers.clearTrtCache.image }}
-        command: ['sh', '-c', 'rm -rf /opt/nim/.cache/trt_engines_cache/ && echo "TensorRT cache cleared for L40S compatibility"']
-        volumeMounts:
-        - name: cache
-          mountPath: /opt/nim/.cache
-        securityContext:
-          runAsUser: 0
-      {{- end }}
       containers:
       - name: nim-server
         image: "{{ .Values.inference.modelServer.image.repository }}:{{ .Values.inference.modelServer.image.tag }}"
@@ -97,10 +59,8 @@ spec:
         {{- end }}
         resources:
           {{- toYaml .Values.inference.modelServer.deployment.resources.gpu | nindent 10 }}
-        volumeMounts:
-        - name: cache
-          mountPath: /opt/nim/.cache
         {{- if .Values.inference.modelServer.deployment.nim.shm.enabled }}
+        volumeMounts:
         - name: dev-shm
           mountPath: /dev/shm
         {{- end }}
@@ -122,13 +82,21 @@ spec:
       {{- end }}
       {{- if .Values.inference.modelServer.deployment.affinity }}
       affinity:
-        {{- toYaml .Values.inference.modelServer.deployment.affinity | nindent 8 }}
+        {{- if .Values.inference.modelServer.deployment.affinity.nodeAffinity }}
+        nodeAffinity:
+          {{- toYaml .Values.inference.modelServer.deployment.affinity.nodeAffinity | nindent 10 }}
+        {{- end }}
+        {{- if and .Values.inference.modelServer.deployment.affinity.podAffinity.enabled .Values.inference.modelServer.deployment.affinity.podAffinity.requiredDuringSchedulingIgnoredDuringExecution }}
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: topology.kubernetes.io/zone
+              labelSelector:
+                matchLabels:
+                  "app.kubernetes.io/component": "{{$.Values.inference.serviceName}}"
+        {{- end }}
       {{- end }}
-      volumes:
-      - name: cache
-        persistentVolumeClaim:
-          claimName: {{ .Values.inference.modelServer.deployment.nim.persistence.claimName }}
       {{- if .Values.inference.modelServer.deployment.nim.shm.enabled }}
+      volumes:
       - name: dev-shm
         emptyDir:
           medium: {{ .Values.inference.modelServer.deployment.nim.shm.medium }}
