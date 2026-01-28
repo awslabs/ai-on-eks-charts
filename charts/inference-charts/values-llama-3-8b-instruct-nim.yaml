@@ -30,65 +30,16 @@ inference:
             memory: "64Gi"
             nvidia.com/gpu: "1"
 
-      # NIM-specific configuration
+      # NIM-specific configuration (inherits from values.yaml nim section)
       nim:
-        # NIM environment variables for LLM
+        # LLM-specific environment variables
+        # For full list: https://docs.nvidia.com/nim/large-language-models/latest/configuration.html
         env:
-          # For full list: https://docs.nvidia.com/nim/large-language-models/latest/configuration.html
           NIM_MODEL_NAME: "meta/llama3-8b-instruct"
-          NVIDIA_VISIBLE_DEVICES: "all"
-          NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
-          NIM_CACHE_PATH: "/opt/nim/.cache"
-          # LLM-specific settings
           NIM_MAX_MODEL_LEN: "4096"  # Maximum sequence length
           NIM_TENSOR_PARALLEL_SIZE: "1"  # Number of GPUs for tensor parallelism
-
-        # Security context
-        securityContext:
-          capabilities:
-            add: ["SYS_ADMIN"]
-          runAsUser: 1000
-          runAsGroup: 1000
-
-        podSecurityContext:
-          fsGroup: 1000
-          runAsUser: 1000
-          runAsGroup: 1000
-
-        # Shared memory configuration
-        shm:
-          enabled: true
-          medium: Memory
-          sizeLimit: 1Gi
-
-        # Health probes (NIM LLM takes 10-15 minutes to start)
-        livenessProbe:
-          httpGet:
-            path: /v1/health/live
-            port: 8000
-          initialDelaySeconds: 900  # 15 minutes for LLM
-          periodSeconds: 30
-          timeoutSeconds: 10
-          failureThreshold: 3
-
-        readinessProbe:
-          httpGet:
-            path: /v1/health/ready
-            port: 8000
-          # LLMs typically load faster than diffusion models
-          initialDelaySeconds: 900  # 15 minutes
-          periodSeconds: 10
-          timeoutSeconds: 10
-          failureThreshold: 3
-
-        # NGC and HF secrets
-        secrets:
-          ngcApiKey:
-            name: ngc-api
-            key: NGC_API_KEY
-          hfToken:
-            name: hf-token
-            key: HF_TOKEN
+        # Note: Common NIM settings (NVIDIA_VISIBLE_DEVICES, security context, health probes, secrets)
+        # are inherited from values.yaml and can be overridden here if needed
 
       # Optimized for Llama 3: Works on Ampere (A), Lovelace (L), Hopper (H), and Blackwell (B) architectures.
       # g6e instances utilize L40S (Lovelace) GPUs.
@@ -108,21 +59,6 @@ inference:
 
       # Pod annotations
       annotations: {}
-
-      # Affinity - prefer on-demand instances, adjust as needed
-      affinity:
-        nodeAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              preference:
-                matchExpressions:
-                  - key: karpenter.sh/capacity-type
-                    operator: In
-                    values:
-                      - on-demand
-        podAffinity:
-          enabled: true
-          requiredDuringSchedulingIgnoredDuringExecution: true
 
 # Image pull secrets for NGC registry
 imagePullSecrets:

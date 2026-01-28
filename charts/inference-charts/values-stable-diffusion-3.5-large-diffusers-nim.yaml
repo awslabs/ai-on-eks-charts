@@ -30,43 +30,22 @@ inference:
             memory: "128Gi"
             nvidia.com/gpu: "1"
 
-      # NIM-specific configuration
+      # NIM-specific configuration (inherits from values.yaml nim section)
       nim:
-        # NIM environment variables
+        # Diffusion model-specific environment variables
+        # For full list: https://docs.nvidia.com/nim/visual-genai/1.0.0/configuration.html
         env:
-          # For full list: https://docs.nvidia.com/nim/visual-genai/1.0.0/configuration.html
           NIM_MODEL_NAME: "stable-diffusion-3.5-large"
           NIM_ALLOW_UNCHECKED_GENERATION: "true" #use "disable_safety_checker" in request
           NIM_MODEL_VARIANT: "base"
-          NVIDIA_VISIBLE_DEVICES: "all"
-          NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
-          NIM_CACHE_PATH: "/opt/nim/.cache"
           FORCE_REBUILD_ENGINES: "true"
 
-        # Security context
-        securityContext:
-          capabilities:
-            add: ["SYS_ADMIN"]
-          runAsUser: 1000
-          runAsGroup: 1000
-
-        podSecurityContext:
-          fsGroup: 1000
-          runAsUser: 1000
-          runAsGroup: 1000
-
-        # Shared memory configuration
-        shm:
-          enabled: true
-          medium: Memory
-          sizeLimit: 1Gi
-
-        # Health probes (NIM takes 20-30 minutes to start)
+        # Override health probes for diffusion models (take longer to start than LLMs)
         livenessProbe:
           httpGet:
             path: /v1/health/live
             port: 8000
-          initialDelaySeconds: 1800
+          initialDelaySeconds: 1800  # 30 minutes for diffusion models
           periodSeconds: 30
           timeoutSeconds: 10
           failureThreshold: 3
@@ -77,19 +56,12 @@ inference:
             port: 8000
           # High initial delay due to potential model loading
           # If using a preloaded model (e.g. from a pre-loaded volume), this can be much lower
-          initialDelaySeconds: 1800
+          initialDelaySeconds: 1800  # 30 minutes
           periodSeconds: 10
           timeoutSeconds: 10
           failureThreshold: 3
-
-        # NGC and HF secrets
-        secrets:
-          ngcApiKey:
-            name: ngc-api
-            key: NGC_API_KEY
-          hfToken:
-            name: hf-token
-            key: HF_TOKEN
+        # Note: Common NIM settings (NVIDIA_VISIBLE_DEVICES, security context, secrets)
+        # are inherited from values.yaml and can be overridden here if needed
 
       # Optimized for SD 3.5: Lovelace (L), Hopper (H), and Blackwell (B) architectures.
       # g6e instances utilize L40S (Lovelace) GPUs.
@@ -108,21 +80,6 @@ inference:
 
       # Pod annotations
       annotations: {}
-
-      # Affinity - prefer on-demand instances, adjust as needed
-      affinity:
-        nodeAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              preference:
-                matchExpressions:
-                  - key: karpenter.sh/capacity-type
-                    operator: In
-                    values:
-                      - on-demand
-        podAffinity:
-          enabled: true
-          requiredDuringSchedulingIgnoredDuringExecution: true
 
 # Image pull secrets for NGC registry
 imagePullSecrets:
