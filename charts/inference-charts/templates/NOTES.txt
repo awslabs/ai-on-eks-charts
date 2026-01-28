@@ -26,6 +26,7 @@ The following service is available:
   http://{{ .Release.Name }}-{{ .Values.inference.accelerator }}-ray-vllm:{{ .Values.service.port }}/v1/chat/completions
 {{- end }}
 
+{{- if ne .Values.inference.framework "nim" }}
 Example curl command to test the API:
 
 curl -X POST \
@@ -49,10 +50,28 @@ Available API endpoints:
 - /v1/chat/completions - Chat completion API
 - /metrics - Prometheus metrics endpoint
 {{- else }}
+NVIDIA NIM Deployment:
+
+Service: {{ .Values.inference.serviceName }}
+Namespace: {{ .Values.inference.serviceNamespace }}
+
+IMPORTANT: NIM deployments take time to become ready:
+- LLM models (like Llama): 10-15 minutes
+- Diffusion models (like Stable Diffusion): 20-30 minutes
+
+Monitor deployment progress:
+  $ kubectl logs -f deployment/{{ .Values.inference.serviceName }} -n {{ .Values.inference.serviceNamespace }}
+
+Check when ready:
+  $ kubectl get deployment {{ .Values.inference.serviceName }} -n {{ .Values.inference.serviceNamespace }}
+
+For detailed API usage and testing examples, see the README under the header NVIDIA NIM Examples
+{{- end }}
+{{- else }}
 No inference service was enabled. Please set both accelerator and framework values:
 
 - inference.accelerator: gpu or neuron
-- inference.framework: vllm or ray-vllm
+- inference.framework: vllm, ray-vllm, triton-vllm, diffusers, lws-vllm, aibrix, or nim
 
 For example:
   $ helm upgrade {{ .Release.Name }} . --set inference.accelerator=gpu --set inference.framework=vllm

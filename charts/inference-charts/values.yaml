@@ -93,6 +93,56 @@ inference:
             aws.amazon.com/neuron: 1
           limits:
             aws.amazon.com/neuron: 1
+      # NIM-specific configuration (NVIDIA Inference Microservices)
+      # These are default values that can be overridden in model-specific values files
+      nim:
+        # Common NIM environment variables
+        env:
+          NVIDIA_VISIBLE_DEVICES: "all"
+          NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
+          NIM_CACHE_PATH: "/opt/nim/.cache"
+
+        # Run as non-root user (required for NIM containers - do not comment out)
+        # NIM images are built to run as UID 1000 with pre-configured library paths
+        # Running as root will cause CUDA library loading failures
+        podSecurityContext:
+          fsGroup: 1000
+          runAsUser: 1000
+          runAsGroup: 1000
+
+        # Shared memory configuration
+        shm:
+          enabled: true
+          medium: Memory
+          sizeLimit: 1Gi
+
+        # Health probes - common endpoints for NIM
+        livenessProbe:
+          httpGet:
+            path: /v1/health/live
+            port: 8000
+          initialDelaySeconds: 900  # Default for smaller models
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+
+        readinessProbe:
+          httpGet:
+            path: /v1/health/ready
+            port: 8000
+          initialDelaySeconds: 900  # Default for smaller models
+          periodSeconds: 10
+          timeoutSeconds: 10
+          failureThreshold: 3
+
+        # NGC and HuggingFace secrets
+        secrets:
+          ngcApiKey:
+            name: ngc-api
+            key: NGC_API_KEY
+          hfToken:
+            name: hf-token
+            key: HF_TOKEN
       # Topology constraints for pod scheduling
       topologySpreadConstraints:
         enabled: true

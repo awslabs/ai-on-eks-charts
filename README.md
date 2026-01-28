@@ -45,7 +45,7 @@ helm install qwen3-1-7b ai-on-eks/inference-charts \
 
 ### Language Models
 
-- **Llama Series**: 2-13B, 3-70B, 3.1-8B, 3.2-1B, 4-Scout-17B
+- **Llama Series**: 2-13B, 3-70B, 3-8b-instruct, 3.1-8B, 3.2-1B, 4-Scout-17B
 - **DeepSeek**: R1 Distill Llama 8B
 - **Mistral**: Small 24B
 - **Qwen**: 3 Coder 480B, 3-1.7B
@@ -66,6 +66,7 @@ helm install qwen3-1-7b ai-on-eks/inference-charts \
 - **Triton + vLLM**: NVIDIA Triton integration
 - **Diffusers**: Hugging Face diffusion models
 - **LWS (LeaderWorkerSet)**: Kubernetes-native distributed serving
+- **NIM (NVIDIA Inference Microservices)** - NVIDIA GPU optimized inference containers (needs NGC Key)
 
 ## Hardware Support
 
