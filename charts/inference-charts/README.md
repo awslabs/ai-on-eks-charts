@@ -47,7 +47,7 @@ The chart supports the following deployment types:
 - Includes additional model labels for AIBrix integration
 - Suitable for AIBrix-managed inference workloads
 
-**NVIDIA NIM Deployments** (`framework: nim`):
+**NVIDIA NIM Container Deployments** (`framework: nim-container`):
 
 - NVIDIA Inference Microservices for optimized model serving
 - Pre-built, optimized containers from NVIDIA NGC catalog
@@ -129,7 +129,7 @@ The following table lists the configurable parameters of the inference-charts ch
 |--------------------------------------------------------------------------|-------------------------------------------------------------------------------------|-----------------------------------------------------------------------------|
 | `global.image.pullPolicy`                                                | Global image pull policy                                                            | `IfNotPresent`                                                              |
 | `inference.accelerator`                                                  | Accelerator type to use (gpu or neuron)                                             | `gpu`                                                                       |
-| `inference.framework`                                                    | Framework type to use (vllm, ray-vllm, triton-vllm, aibrix, lws-vllm,  diffusers, or nim) | `vllm`                                                                      |
+| `inference.framework`                                                    | Framework type to use (vllm, ray-vllm, triton-vllm, aibrix, lws-vllm,  diffusers, or nim-container) | `vllm`                                                                      |
 | `inference.serviceName`                                                  | Name of the inference service                                                       | `inference`                                                                 |
 | `inference.serviceNamespace`                                             | Namespace for the inference service                                                 | `default`                                                                   |
 | `inference.modelServer.image.repository`                                 | Model server image repository                                                       | `vllm/vllm-openai`                                                          |
@@ -667,7 +667,7 @@ helm install latent-diffusion ai-on-eks/inference-charts -f https://raw.githubus
 
 ### NVIDIA NIM Examples
 
-> **Note:** To set up a NIM-enabled EKS cluster, use the installation script available at: https://github.com/awslabs/ai-on-eks/tree/main/infra/nvidia-nim
+> **Note:** To set up an inference EKS cluster, follow instructions at: https://awslabs.github.io/ai-on-eks/docs/infra/inference-ready-cluster
 
 #### Prerequisites for NIM Deployments
 

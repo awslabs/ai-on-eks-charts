@@ -8,7 +8,7 @@ inference:
   serviceName: nim-llama-31-8b
   serviceNamespace: default # Recommended: Move to a dedicated namespace (e.g., 'nim') to ensure service isolation.
   accelerator: gpu
-  framework: nim
+  framework: nim-container
 
   modelServer:
     image:
