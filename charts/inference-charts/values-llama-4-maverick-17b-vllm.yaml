@@ -1,0 +1,29 @@
+# Llama 4 Maverick (17B-128E) on GPU with FP8 quantization
+# FP8 required due to memory constraints (800GB BF16 > 640GB p5.48xlarge)
+
+model: RedHatAI/Llama-4-Maverick-17B-128E-Instruct-FP8
+
+modelParameters:
+  gpuMemoryUtilization: 0.9
+  maxModelLen: 8192
+  tensorParallelSize: 8
+
+inference:
+  serviceName: llama-4-maverick-17b-vllm
+  serviceNamespace: default
+  accelerator: gpu
+  framework: vllm
+
+  modelServer:
+    image:
+      repository: public.ecr.aws/deep-learning-containers/vllm
+      tag: 0.10.2-gpu-py312-ec2
+    deployment:
+      resources:
+        gpu:
+          requests:
+            nvidia.com/gpu: 8
+          limits:
+            nvidia.com/gpu: 8
+      nodeSelector:
+        node.kubernetes.io/instance-type: p5.48xlarge

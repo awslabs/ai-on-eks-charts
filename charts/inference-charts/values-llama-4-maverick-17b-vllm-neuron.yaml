@@ -1,0 +1,38 @@
+# Llama 4 Maverick (17B-128E) on Trainium2
+# Requires pre-compiled model artifacts
+
+model: meta-llama/Llama-4-Maverick-17B-128E-Instruct
+
+modelParameters:
+  maxModelLen: 16384
+  maxNumSeqs: 1
+  tensorParallelSize: 64
+
+inference:
+  serviceName: llama-4-maverick-17b-vllm-nrn
+  serviceNamespace: default
+  accelerator: neuron
+  framework: vllm
+
+  modelServer:
+    image:
+      repository: public.ecr.aws/neuron/pytorch-inference-neuronx
+      tag: 2.5.1-neuronx-py310-sdk2.21.0-ubuntu22.04
+    deployment:
+      resources:
+        neuron:
+          requests:
+            aws.amazon.com/neuron: 32
+            memory: 512Gi
+          limits:
+            aws.amazon.com/neuron: 32
+            memory: 768Gi
+      nodeSelector:
+        node.kubernetes.io/instance-type: trn2.48xlarge
+      tolerations:
+        - key: aws.amazon.com/neuron
+          operator: Exists
+          effect: NoSchedule
+    env:
+      VLLM_USE_V1: "1"
+      NEURON_COMPILED_ARTIFACTS: ""
