@@ -1,0 +1,86 @@
+# NVIDIA NIM Stable Diffusion 3.5 Large
+# Optimized for L40S GPUs (g6e instances)
+
+# NIM doesn't use the model parameter the same way - it's baked into the container
+model: stabilityai/stable-diffusion-3.5-large
+
+inference:
+  serviceName: nim-sd-35-large
+  serviceNamespace: default # Recommended: Move to a dedicated namespace (e.g., 'nim') to ensure service isolation.
+  accelerator: gpu
+  framework: nim-container
+
+  modelServer:
+    image:
+      repository: nvcr.io/nim/stabilityai/stable-diffusion-3.5-large
+      tag: latest
+
+    deployment:
+      replicas: 1
+      instanceType: g6e.4xlarge  # L40S instance
+
+      resources:
+        gpu:
+          requests:
+            cpu: "8"
+            memory: "64Gi"
+            nvidia.com/gpu: "1"
+          limits:
+            cpu: "16"
+            memory: "128Gi"
+            nvidia.com/gpu: "1"
+
+      # NIM-specific configuration (inherits from values.yaml nim section)
+      nim:
+        # Diffusion model-specific environment variables
+        # For full list: https://docs.nvidia.com/nim/visual-genai/1.0.0/configuration.html
+        env:
+          NIM_MODEL_NAME: "stable-diffusion-3.5-large"
+          NIM_ALLOW_UNCHECKED_GENERATION: "true" #use "disable_safety_checker" in request
+          NIM_MODEL_VARIANT: "base"
+          FORCE_REBUILD_ENGINES: "true"
+
+        # Override health probes for diffusion models (take longer to start than LLMs)
+        livenessProbe:
+          httpGet:
+            path: /v1/health/live
+            port: 8000
+          initialDelaySeconds: 1800  # 30 minutes for diffusion models
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+
+        readinessProbe:
+          httpGet:
+            path: /v1/health/ready
+            port: 8000
+          # High initial delay due to potential model loading
+          # If using a preloaded model (e.g. from a pre-loaded volume), this can be much lower
+          initialDelaySeconds: 1800  # 30 minutes
+          periodSeconds: 10
+          timeoutSeconds: 10
+          failureThreshold: 3
+        # Note: Common NIM settings (NVIDIA_VISIBLE_DEVICES, security context, secrets)
+        # are inherited from values.yaml and can be overridden here if needed
+
+      # Optimized for SD 3.5: Lovelace (L), Hopper (H), and Blackwell (B) architectures.
+      # g6e instances utilize L40S (Lovelace) GPUs.
+      nodeSelector:
+        karpenter.sh/nodepool: g6e-nvidia
+
+      # Tolerations
+      tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+        - key: "karpenter.sh/nodepool"
+          operator: "Equal"
+          value: "g6e-nvidia"
+          effect: "NoSchedule"
+
+      # Pod annotations
+      annotations: {}
+
+# Image pull secrets for NGC registry
+imagePullSecrets:
+  - name: ngc-secret

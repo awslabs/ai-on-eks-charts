@@ -1,0 +1,65 @@
+# NVIDIA NIM Llama 3.1 8B Instruct
+# Optimized for GPU inference with TensorRT-LLM
+
+# NIM doesn't use the model parameter the same way - it's baked into the container
+model: meta/llama3-8b-instruct
+
+inference:
+  serviceName: nim-llama-31-8b
+  serviceNamespace: default # Recommended: Move to a dedicated namespace (e.g., 'nim') to ensure service isolation.
+  accelerator: gpu
+  framework: nim-container
+
+  modelServer:
+    image:
+      repository: nvcr.io/nim/meta/llama3-8b-instruct
+      tag: latest
+
+    deployment:
+      replicas: 1
+      instanceType: g6e.2xlarge  # 1 GPU instance suitable for 8B model
+
+      resources:
+        gpu:
+          requests:
+            cpu: "4"
+            memory: "32Gi"
+            nvidia.com/gpu: "1"
+          limits:
+            cpu: "8"
+            memory: "64Gi"
+            nvidia.com/gpu: "1"
+
+      # NIM-specific configuration (inherits from values.yaml nim section)
+      nim:
+        # LLM-specific environment variables
+        # For full list: https://docs.nvidia.com/nim/large-language-models/latest/configuration.html
+        env:
+          NIM_MODEL_NAME: "meta/llama3-8b-instruct"
+          NIM_MAX_MODEL_LEN: "4096"  # Maximum sequence length
+          NIM_TENSOR_PARALLEL_SIZE: "1"  # Number of GPUs for tensor parallelism
+        # Note: Common NIM settings (NVIDIA_VISIBLE_DEVICES, security context, health probes, secrets)
+        # are inherited from values.yaml and can be overridden here if needed
+
+      # Optimized for Llama 3: Works on Ampere (A), Lovelace (L), Hopper (H), and Blackwell (B) architectures.
+      # g6e instances utilize L40S (Lovelace) GPUs.
+      # For 8B model, g6e.2xlarge (1 GPU) is sufficient
+      nodeSelector:
+        karpenter.sh/nodepool: g6e-nvidia
+
+      # Tolerations
+      tolerations:
+        - key: "nvidia.com/gpu"
+          operator: "Exists"
+          effect: "NoSchedule"
+        - key: "karpenter.sh/nodepool"
+          operator: "Equal"
+          value: "g6e-nvidia"
+          effect: "NoSchedule"
+
+      # Pod annotations
+      annotations: {}
+
+# Image pull secrets for NGC registry
+imagePullSecrets:
+  - name: ngc-secret
