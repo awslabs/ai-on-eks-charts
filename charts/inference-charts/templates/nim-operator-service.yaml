@@ -1,0 +1,108 @@
+{{- if and (.Values.nimService).enabled (eq .Values.inference.framework "nim-operator") }}
+---
+apiVersion: apps.nvidia.com/v1alpha1
+kind: NIMService
+metadata:
+  name: {{ .Values.inference.serviceName }}
+  namespace: {{ .Values.inference.serviceNamespace }}
+  labels:
+    {{- include "inference-charts.labels" . | nindent 4 }}
+    {{- with .Values.nimService.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  image:
+    repository: {{ .Values.nimService.image.repository }}
+    tag: {{ .Values.nimService.image.tag }}
+    pullPolicy: {{ .Values.nimService.image.pullPolicy }}
+    {{- if .Values.imagePullSecrets }}
+    pullSecrets:
+      {{- range .Values.imagePullSecrets }}
+      - {{ .name }}
+      {{- end }}
+    {{- end }}
+
+  {{- if .Values.nimService.authSecret }}
+  authSecret: {{ .Values.nimService.authSecret }}
+  {{- end }}
+
+  {{- if .Values.nimService.storage }}
+  storage:
+    {{- if .Values.nimService.storage.nimCache }}
+    nimCache:
+      name: {{ .Values.nimService.storage.nimCache.name }}
+      {{- if .Values.nimService.storage.nimCache.profile }}
+      profile: {{ .Values.nimService.storage.nimCache.profile }}
+      {{- end }}
+    {{- end }}
+    {{- if .Values.nimService.storage.pvc }}
+    pvc:
+      {{- toYaml .Values.nimService.storage.pvc | nindent 6 }}
+    {{- end }}
+  {{- end }}
+
+  {{- if .Values.nimService.replicas }}
+  replicas: {{ .Values.nimService.replicas }}
+  {{- end }}
+
+  {{- if .Values.nimService.env }}
+  env:
+    {{- toYaml .Values.nimService.env | nindent 4 }}
+  {{- end }}
+
+  {{- if .Values.nimService.resources }}
+  resources:
+    {{- toYaml .Values.nimService.resources | nindent 4 }}
+  {{- end }}
+
+  {{- if .Values.nimService.nodeSelector }}
+  nodeSelector:
+    {{- toYaml .Values.nimService.nodeSelector | nindent 4 }}
+  {{- end }}
+
+  {{- if .Values.nimService.tolerations }}
+  tolerations:
+    {{- toYaml .Values.nimService.tolerations | nindent 4 }}
+  {{- end }}
+
+  {{- if .Values.inference.modelServer.deployment.topologySpreadConstraints.enabled }}
+  topologySpreadConstraints:
+    {{- range .Values.inference.modelServer.deployment.topologySpreadConstraints.constraints }}
+    - maxSkew: {{ .maxSkew }}
+      topologyKey: {{ .topologyKey }}
+      whenUnsatisfiable: {{ .whenUnsatisfiable }}
+      labelSelector:
+        matchLabels:
+          "app.kubernetes.io/component": "{{ $.Values.inference.serviceName }}"
+    {{- end }}
+  {{- end }}
+
+  {{- if and .Values.inference.modelServer.deployment.podAffinity.enabled .Values.inference.modelServer.deployment.podAffinity.preferredDuringSchedulingIgnoredDuringExecution }}
+  affinity:
+    podAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        {{- range .Values.inference.modelServer.deployment.podAffinity.preferredDuringSchedulingIgnoredDuringExecution }}
+        - weight: {{ .weight }}
+          podAffinityTerm:
+            topologyKey: {{ .podAffinityTerm.topologyKey }}
+            labelSelector:
+              matchLabels:
+                "app.kubernetes.io/component": "{{ $.Values.inference.serviceName }}"
+        {{- end }}
+  {{- end }}
+
+  {{- if .Values.nimService.expose }}
+  expose:
+    {{- toYaml .Values.nimService.expose | nindent 4 }}
+  {{- else }}
+  expose:
+    service:
+      type: {{ .Values.service.type }}
+      port: {{ .Values.service.port }}
+  {{- end }}
+
+  {{- if .Values.nimService.metrics }}
+  metrics:
+    {{- toYaml .Values.nimService.metrics | nindent 4 }}
+  {{- end }}
+{{- end }}
