@@ -226,10 +226,14 @@ The chart includes pre-configured values files for the following models:
 - **Latent Diffusion**: `values-latent-diffusion-diffusers.yaml` (Diffusers)
 - **OmniGen**: `values-omni-gen-diffusers.yaml` (Diffusers)
 
-#### NVIDIA NIM Models
+#### NVIDIA NIM Models deployed with standalone NIM containers
 
-- **Llama 3.1 8B Instruct**: `values-llama-31-8b-nim.yaml` (NIM)
-- **Stable Diffusion 3.5 Large**: `values-stable-diffusion-3.5-large-diffusers-nim.yaml` (NIM)
+- **Llama 3.1 8B Instruct**: `values-llama-3-8b-instruct-nim-container.yaml` (NIM-container)
+- **Stable Diffusion 3.5 Large**: `values-stable-diffusion-3.5-large-diffusers-nim.yaml` (NIM-container)
+
+#### NVIDIA NIM Models deployed with NIM Operators
+- **Llama 3.1 8B Instruct**: `vvalues-llama-3-8b-instruct-nim-operator.yaml` (NIM-operator)
+- **Stable Diffusion 3.5 Large**: `values-stable-diffusion-3.5-large-diffusers-nim-operator.yaml` (NIM-operator)
 
 ### Neuron Models
 
@@ -698,7 +702,7 @@ kubectl create secret docker-registry ngc-secret \
 helm repo add ai-on-eks https://awslabs.github.io/ai-on-eks-charts/
 helm repo update
 
-helm install nim-llama-31-8b ai-on-eks/inference-charts -f https://raw.githubusercontent.com/awslabs/ai-on-eks-charts/refs/heads/main/charts/inference-charts/values-llama-3-8b-instruct-nim.yaml
+helm install nim-llama-31-8b ai-on-eks/inference-charts -f https://raw.githubusercontent.com/awslabs/ai-on-eks-charts/refs/heads/main/charts/inference-charts/values-llama-3-8b-instruct-nim-container.yaml
 ```
 
 **Test the LLM:**
@@ -722,7 +726,7 @@ curl -X POST http://localhost:8000/v1/chat/completions \
 helm repo add ai-on-eks https://awslabs.github.io/ai-on-eks-charts/
 helm repo update
 
-helm install nim-sd-large ai-on-eks/inference-charts -f https://raw.githubusercontent.com/awslabs/ai-on-eks-charts/refs/heads/main/charts/inference-charts/values-stable-diffusion-3.5-large-diffusers-nim.yaml
+helm install nim-sd-large ai-on-eks/inference-charts -f https://raw.githubusercontent.com/awslabs/ai-on-eks-charts/refs/heads/main/charts/inference-charts/values-stable-diffusion-3.5-large-diffusers-nim-container.yaml
 ```
 
 **Test image generation:**
