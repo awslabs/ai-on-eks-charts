@@ -5,7 +5,7 @@
 model: meta/llama3-8b-instruct
 
 inference:
-  serviceName: nim-llama-31-8b
+  serviceName: nim-llama-3-8b
   serviceNamespace: default # Recommended: Move to a dedicated namespace (e.g., 'nim') to ensure service isolation.
   accelerator: gpu
   framework: nim-container
@@ -30,8 +30,8 @@ inference:
             memory: "64Gi"
             nvidia.com/gpu: "1"
 
-      # NIM-specific configuration (inherits from values.yaml nim section)
-      nim:
+      # NIM-specific configuration (inherits from values.yaml nimContainer section)
+      nimContainer:
         # LLM-specific environment variables
         # For full list: https://docs.nvidia.com/nim/large-language-models/latest/configuration.html
         env:

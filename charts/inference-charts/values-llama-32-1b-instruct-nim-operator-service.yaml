@@ -1,0 +1,54 @@
+# NIMService configuration for LLaMA 3.2 1B Instruct
+# This values file deploys the inference service using cached model profiles
+# PREREQUISITE: Deploy NIMCache first using values-llama-32-1b-instruct-nim-operator-cache.yaml
+# Common NIM operator defaults are in values.yaml under nimService
+
+model: meta/llama-3.2-1b-instruct
+
+inference:
+  serviceName: meta-llama-3-2-1b-instruct
+  serviceNamespace: default
+  framework: nim-operator
+
+nimService:
+  enabled: true #override from values
+
+  image:
+    repository: nvcr.io/nim/meta/llama-3.2-1b-instruct
+    tag: "1.12.0"
+    pullPolicy: IfNotPresent
+
+  storage:
+    nimCache:
+      name: meta-llama-3-2-1b-instruct
+      profile: ""
+
+  resources:
+    requests:
+      cpu: "4"
+      memory: "16Gi"
+      nvidia.com/gpu: "1"
+    limits:
+      cpu: "4"
+      memory: "32Gi"
+      nvidia.com/gpu: "1"
+
+  nodeSelector:
+    karpenter.sh/nodepool: g6e-nvidia
+
+  tolerations:
+    - key: "nvidia.com/gpu"
+      operator: "Exists"
+      effect: "NoSchedule"
+
+# Image pull secrets for NGC registry
+imagePullSecrets:
+  - name: ngc-secret
+
+  # Uncomment the following env section if you are using HF models
+  # env:
+  #   - name: HF_TOKEN
+  #     valueFrom:
+  #       secretKeyRef:
+  #         name: hf-token
+  #         key: HF_TOKEN

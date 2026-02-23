@@ -1,0 +1,47 @@
+# NIMCache configuration for LLaMA 3.2 1B Instruct
+# This values file enables pre-pulling and caching of the model profile
+# to a shared PVC for faster NIMService pod startup times
+# Common NIM operator defaults are in values.yaml under nimCache
+
+model: meta/llama-3.2-1b-instruct
+
+inference:
+  serviceName: meta-llama-3-2-1b-instruct
+  serviceNamespace: default
+  framework: nim-operator
+
+nimCache:
+  enabled: true #override from values
+
+  source:
+    ngc:
+      modelPuller: nvcr.io/nim/meta/llama-3.2-1b-instruct:1.12.0
+      model:
+        engine: tensorrt_llm
+        tensorParallelism: "1"
+        lora: false
+        # Uncomment and configure as needed:
+        # precision: "fp8"
+        # qosProfile: "throughput"
+        # gpus:
+        #   - product: "l40s"
+
+  nodeSelector:
+    karpenter.sh/nodepool: g6e-nvidia
+
+  tolerations:
+    - key: "nvidia.com/gpu"
+      operator: "Exists"
+      effect: "NoSchedule"
+
+# Image pull secrets for NGC registry
+imagePullSecrets:
+  - name: ngc-secret
+
+  # Uncomment the following env section if you are using HF models
+  # env:
+  #   - name: HF_TOKEN
+  #     valueFrom:
+  #       secretKeyRef:
+  #         name: hf-token
+  #         key: HF_TOKEN

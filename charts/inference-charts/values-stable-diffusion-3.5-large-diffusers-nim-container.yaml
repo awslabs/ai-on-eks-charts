@@ -13,7 +13,7 @@ inference:
   modelServer:
     image:
       repository: nvcr.io/nim/stabilityai/stable-diffusion-3.5-large
-      tag: latest
+      tag: 1.0.1
 
     deployment:
       replicas: 1
@@ -30,8 +30,8 @@ inference:
             memory: "128Gi"
             nvidia.com/gpu: "1"
 
-      # NIM-specific configuration (inherits from values.yaml nim section)
-      nim:
+      # NIM-specific configuration (inherits from values.yaml nimContainer section)
+      nimContainer:
         # Diffusion model-specific environment variables
         # For full list: https://docs.nvidia.com/nim/visual-genai/1.0.0/configuration.html
         env:

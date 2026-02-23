@@ -15,7 +15,8 @@ The chart supports the following deployment types:
 - GPU-based AIBrix deployments
 - GPU-based LeaderWorkerSet-VLLM deployments
 - GPU-based Diffusers deployments
-- GPU-based NVIDIA NIM deployments
+- GPU-based NVIDIA NIM Container deployments
+- GPU-based NVIDIA NIM Operator deployments
 - Neuron-based VLLM deployments
 - Neuron-based Ray-VLLM deployments
 - Neuron-based Triton-VLLM deployments (Coming Soon)
@@ -57,6 +58,17 @@ The chart supports the following deployment types:
 - Supports persistent cache for model artifacts
 - Longer startup time (20-30 minutes) for model optimization
 - Best for production deployments requiring maximum performance
+
+**NVIDIA NIM Operator Deployments** (`framework: nim-operator`):
+
+- NVIDIA Inference Microservices managed by the NIM Operator
+- Two-step deployment: NIMCache (pre-pulls model profiles) then NIMService (inference service)
+- Uses Kubernetes CRDs (NIMCache and NIMService) for declarative management
+- Optimized startup with pre-cached model profiles for specific GPU types
+- Shared persistent storage (EFS) for model artifacts across replicas
+- Faster scaling and replica startup compared to nim-container
+- Requires NVIDIA NIM Operator installed in cluster
+- Best for production deployments with multiple replicas or frequent scaling
 
 **Triton-VLLM Deployments** (`framework: triton-vllm`):
 
@@ -106,13 +118,13 @@ Before installing the chart, create a Kubernetes secret with your Hugging Face t
 kubectl create secret generic hf-token --from-literal=token=your_huggingface_token
 ```
 
-### Create NGC Token secret for model access (for NIM deployments)
+### Create NGC Token secret for model access (for NIM Container and Operator deployments)
 
 ```bash
 kubectl create secret generic ngc-api --from-literal=NGC_API_KEY=your_ngc_api_key
 ```
 
-### Create NGC Docker registry credentials (for NIM deployments)
+### Create NGC Docker registry credentials (for NIM Container and Operator deployments)
 
 ```bash
 kubectl create secret docker-registry ngc-secret \
@@ -129,7 +141,7 @@ The following table lists the configurable parameters of the inference-charts ch
 |--------------------------------------------------------------------------|-------------------------------------------------------------------------------------|-----------------------------------------------------------------------------|
 | `global.image.pullPolicy`                                                | Global image pull policy                                                            | `IfNotPresent`                                                              |
 | `inference.accelerator`                                                  | Accelerator type to use (gpu or neuron)                                             | `gpu`                                                                       |
-| `inference.framework`                                                    | Framework type to use (vllm, ray-vllm, triton-vllm, aibrix, lws-vllm,  diffusers, or nim-container) | `vllm`                                                                      |
+| `inference.framework`                                                    | Framework type to use (vllm, ray-vllm, triton-vllm, aibrix, lws-vllm,  diffusers, nim-container, or nim-operator) | `vllm`                                                                      |
 | `inference.serviceName`                                                  | Name of the inference service                                                       | `inference`                                                                 |
 | `inference.serviceNamespace`                                             | Namespace for the inference service                                                 | `default`                                                                   |
 | `inference.modelServer.image.repository`                                 | Model server image repository                                                       | `vllm/vllm-openai`                                                          |
@@ -226,10 +238,19 @@ The chart includes pre-configured values files for the following models:
 - **Latent Diffusion**: `values-latent-diffusion-diffusers.yaml` (Diffusers)
 - **OmniGen**: `values-omni-gen-diffusers.yaml` (Diffusers)
 
-#### NVIDIA NIM Models
+#### NVIDIA NIM Models deployed with standalone NIM containers
 
-- **Llama 3.1 8B Instruct**: `values-llama-31-8b-nim.yaml` (NIM)
-- **Stable Diffusion 3.5 Large**: `values-stable-diffusion-3.5-large-diffusers-nim.yaml` (NIM)
+- **Llama 3.1 8B Instruct**: `values-llama-3-8b-instruct-nim-container.yaml` (NIM-container)
+- **Stable Diffusion 3.5 Large**: `values-stable-diffusion-3.5-large-diffusers-nim.yaml` (NIM-container)
+
+#### NVIDIA NIM Models deployed with NIM Operators
+- **Llama 3.1 8B Instruct**:
+  - Cache: `values-llama-31-8b-instruct-nim-operator-cache.yaml` (NIM-operator-cache)
+  - Service: `values-llama-31-8b-instruct-nim-operator-service.yaml` (NIM-operator-service)
+
+- **Llama 3.2 1B Instruct**:
+  - Cache: `values-llama-32-1b-instruct-nim-operator-cache.yaml` (NIM-operator-cache)
+  - Service: `values-llama-32-1b-instruct-nim-operator-service.yaml` (NIM-operator-service)
 
 ### Neuron Models
 
@@ -665,13 +686,13 @@ helm repo update
 helm install latent-diffusion ai-on-eks/inference-charts -f https://raw.githubusercontent.com/awslabs/ai-on-eks-charts/refs/heads/main/charts/inference-charts/values-latent-diffusion-diffusers.yaml
 ```
 
-### NVIDIA NIM Examples
+### NVIDIA NIM CONTAINER Examples
 
-> **Note:** To set up an inference EKS cluster, follow instructions at: https://awslabs.github.io/ai-on-eks/docs/infra/inference-ready-cluster
+> **Note:** To set up an inference EKS cluster, follow instructions at: https://awslabs.github.io/ai-on-eks/docs/infra/inference/inference-ready-cluster
 
-#### Prerequisites for NIM Deployments
+#### Prerequisites for NIM Container Deployments
 
-Before deploying NIM, create the required secrets:
+Create the required secrets:
 
 ```bash
 # NGC API Key - visit https://catalog.ngc.nvidia.com/ to generate NGC keys
@@ -692,19 +713,19 @@ kubectl create secret docker-registry ngc-secret \
   -n default
 ```
 
-#### Deploy NIM Llama 3.1 8B Instruct (LLM)
+#### Deploy NIM Container Llama 3 8B Instruct (LLM)
 
 ```bash
 helm repo add ai-on-eks https://awslabs.github.io/ai-on-eks-charts/
 helm repo update
 
-helm install nim-llama-31-8b ai-on-eks/inference-charts -f https://raw.githubusercontent.com/awslabs/ai-on-eks-charts/refs/heads/main/charts/inference-charts/values-llama-3-8b-instruct-nim.yaml
+helm install nim-llama-3-8b ai-on-eks/inference-charts -f https://raw.githubusercontent.com/awslabs/ai-on-eks-charts/refs/heads/main/charts/inference-charts/values-llama-3-8b-instruct-nim-container.yaml
 ```
 
 **Test the LLM:**
 ```bash
 # Port forward
-kubectl port-forward svc/nim-llama-31-8b 8000:8000
+kubectl port-forward svc/nim-llama-3-8b 8000:8000
 
 # Test chat completion
 curl -X POST http://localhost:8000/v1/chat/completions \
@@ -716,13 +737,13 @@ curl -X POST http://localhost:8000/v1/chat/completions \
   }'
 ```
 
-#### Deploy NIM Stable Diffusion 3.5 Large (Image Generation)
+#### Deploy NIM Container Stable Diffusion 3.5 Large (Image Generation)
 
 ```bash
 helm repo add ai-on-eks https://awslabs.github.io/ai-on-eks-charts/
 helm repo update
 
-helm install nim-sd-large ai-on-eks/inference-charts -f https://raw.githubusercontent.com/awslabs/ai-on-eks-charts/refs/heads/main/charts/inference-charts/values-stable-diffusion-3.5-large-diffusers-nim.yaml
+helm install nim-sd-large ai-on-eks/inference-charts -f https://raw.githubusercontent.com/awslabs/ai-on-eks-charts/refs/heads/main/charts/inference-charts/values-stable-diffusion-3.5-large-diffusers-nim-container.yaml
 ```
 
 **Test image generation:**
@@ -791,7 +812,86 @@ Then in your API request:
 - [NVIDIA NIM Documentation](https://docs.nvidia.com/nim/)
 - [NGC Catalog](https://catalog.ngc.nvidia.com/)
 - [Stable Diffusion NIM Guide](https://docs.nvidia.com/nim/visual-genai/)
-- [Main README](./README.md)
+
+
+### NVIDIA NIM OPERATOR Examples
+
+> **Note:** Set up an inference-ready EKS cluster with the NVIDIA NIM stack using the [cluster setup guide](https://awslabs.github.io/ai-on-eks/docs/infra/inference/inference-ready-cluster) and the [install script](https://github.com/awslabs/ai-on-eks/blob/main/infra/nvidia-nim/install.sh).
+
+**Prerequisites:**
+
+```bash
+# NGC API secret for authentication - visit https://catalog.ngc.nvidia.com/ to generate NGC keys
+kubectl create secret generic ngc-api \
+  --from-literal=NGC_API_KEY=<your-ngc-api-key> \
+  -n <namespace>
+
+# NGC pull secret for container registry
+kubectl create secret docker-registry ngc-secret \
+  --docker-server=nvcr.io \
+  --docker-username='$oauthtoken' \
+  --docker-password=<your-ngc-api-key> \
+  -n <namespace>
+```
+
+#### Deploy NIM Operator Llama 3.1 8B Instruct (LLM)
+
+The NIM Operator deployment uses two components: a **NIMCache** that pre-pulls and caches model profiles for faster startup, and a **NIMService** that serves the cached model.
+
+Step 1: Deploy the NIMCache to download and cache the model profiles:
+
+```bash
+helm repo add ai-on-eks https://awslabs.github.io/ai-on-eks-charts/
+helm repo update
+
+helm install nim-llama-cache ai-on-eks/inference-charts -f https://raw.githubusercontent.com/awslabs/ai-on-eks-charts/refs/heads/main/charts/inference-charts/values-llama-31-8b-instruct-nim-operator-cache.yaml
+```
+
+Wait for the NIMCache to be ready:
+
+```bash
+kubectl wait --for=condition=Ready nimcache/meta-llama-3-1-8b-instruct -n default --timeout=600s
+
+# see the downloaded model profiles
+kubectl get nimcache meta-llama-3-1-8b-instruct -n default -o jsonpath='{.status.profiles}' | jq
+```
+
+Step 2: Deploy the NIMService to serve the cached model:
+
+```bash
+helm install nim-llama-service ai-on-eks/inference-charts -f https://raw.githubusercontent.com/awslabs/ai-on-eks-charts/refs/heads/main/charts/inference-charts/values-llama-31-8b-instruct-nim-operator-service.yaml
+```
+
+Wait for the NIMService to be ready:
+
+```bash
+kubectl wait --for=condition=Ready nimservice/meta-llama-3-1-8b-instruct -n nim-llama-helm --timeout=600s
+```
+
+**Troubleshooting:**
+
+```bash
+# Cache not ready - check status and PVC
+kubectl describe nimcache meta-llama-3-1-8b-instruct
+kubectl get pvc
+
+# If no model profiles are downloaded, remove the model filter in the cache values file and redeploy
+
+# Service not starting - check logs and cache reference
+kubectl logs -l app.kubernetes.io/component=meta-llama-3-1-8b-instruct
+kubectl describe nimservice meta-llama-3-1-8b-instruct
+```
+
+**NIM Container vs NIM Operator:**
+
+| Feature | nim-container | nim-operator |
+|---------|---------------|--------------|
+| Deployment | Single Helm install | Two-step: cache then service |
+| Startup Time | Cold start (slower) | Warm start with cached profiles (faster) |
+| Storage | Ephemeral | Persistent (EFS/NFS) |
+| Profile Optimization | Runtime | Pre-cached for specific GPUs |
+| Best For | Quick testing | Production, multiple replicas, faster scaling |
+
 
 ### S3 Model Copy Examples
 

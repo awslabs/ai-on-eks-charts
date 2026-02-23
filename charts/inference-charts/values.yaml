@@ -93,9 +93,9 @@ inference:
             aws.amazon.com/neuron: 1
           limits:
             aws.amazon.com/neuron: 1
-      # NIM-specific configuration (NVIDIA Inference Microservices)
+      # NIM Container-specific configuration (NVIDIA Inference Microservices)
       # These are default values that can be overridden in model-specific values files
-      nim:
+      nimContainer:
         # Common NIM environment variables
         env:
           NVIDIA_VISIBLE_DEVICES: "all"
@@ -201,3 +201,27 @@ ingress:
   annotations: {}
   hosts: []
   tls: []
+
+# NIM Operator defaults (framework: nim-operator)
+# Model-specific values files override what differs.
+# Helm deep-merges these with per-model values, so templates always use .Values.nimCache / .Values.nimService.
+
+nimCache:
+  enabled: false
+  source:
+    ngc:
+      pullSecret: ngc-secret
+      authSecret: ngc-api
+  storage:
+    pvc:
+      create: true
+      storageClass: efs-sc-dynamic
+      size: "50Gi"
+      volumeAccessMode: ReadWriteMany
+
+nimService:
+  enabled: false
+  image:
+    pullPolicy: IfNotPresent
+  authSecret: ngc-api
+  replicas: 1

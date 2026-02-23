@@ -1,0 +1,73 @@
+{{- if and (.Values.nimCache).enabled (eq .Values.inference.framework "nim-operator") }}
+---
+apiVersion: apps.nvidia.com/v1alpha1
+kind: NIMCache
+metadata:
+  name: {{ .Values.inference.serviceName }}
+  namespace: {{ .Values.inference.serviceNamespace }}
+  labels:
+    {{- include "inference-charts.labels" . | nindent 4 }}
+    {{- with .Values.nimCache.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  source:
+    ngc:
+      modelPuller: {{ .Values.nimCache.source.ngc.modelPuller }}
+      pullSecret: {{ .Values.nimCache.source.ngc.pullSecret }}
+      authSecret: {{ .Values.nimCache.source.ngc.authSecret }}
+      {{- if .Values.nimCache.source.ngc.model }}
+      model:
+        {{- if .Values.nimCache.source.ngc.model.profiles }}
+        profiles:
+          {{- toYaml .Values.nimCache.source.ngc.model.profiles | nindent 10 }}
+        {{- else }}
+        {{- if .Values.nimCache.source.ngc.model.engine }}
+        engine: {{ .Values.nimCache.source.ngc.model.engine }}
+        {{- end }}
+        {{- if .Values.nimCache.source.ngc.model.tensorParallelism }}
+        tensorParallelism: {{ .Values.nimCache.source.ngc.model.tensorParallelism | quote }}
+        {{- end }}
+        {{- if .Values.nimCache.source.ngc.model.buildable }}
+        buildable: {{ .Values.nimCache.source.ngc.model.buildable }}
+        {{- end }}
+        {{- if .Values.nimCache.source.ngc.model.precision }}
+        precision: {{ .Values.nimCache.source.ngc.model.precision | quote }}
+        {{- end }}
+        {{- if .Values.nimCache.source.ngc.model.qosProfile }}
+        qosProfile: {{ .Values.nimCache.source.ngc.model.qosProfile | quote }}
+        {{- end }}
+        {{- if .Values.nimCache.source.ngc.model.gpus }}
+        gpus:
+          {{- toYaml .Values.nimCache.source.ngc.model.gpus | nindent 10 }}
+        {{- end }}
+        {{- if .Values.nimCache.source.ngc.model.lora }}
+        lora: {{ .Values.nimCache.source.ngc.model.lora }}
+        {{- end }}
+        {{- end }}
+      {{- end }}
+  {{- if .Values.nimCache.env }}
+  env:
+    {{- toYaml .Values.nimCache.env | nindent 4 }}
+  {{- end }}
+  storage:
+    pvc:
+      create: {{ .Values.nimCache.storage.pvc.create }}
+      {{- if .Values.nimCache.storage.pvc.storageClass }}
+      storageClass: {{ .Values.nimCache.storage.pvc.storageClass }}
+      {{- end }}
+      size: {{ .Values.nimCache.storage.pvc.size | quote }}
+      volumeAccessMode: {{ .Values.nimCache.storage.pvc.volumeAccessMode }}
+  {{- if .Values.nimCache.nodeSelector }}
+  nodeSelector:
+    {{- toYaml .Values.nimCache.nodeSelector | nindent 4 }}
+  {{- end }}
+  {{- if .Values.nimCache.tolerations }}
+  tolerations:
+    {{- toYaml .Values.nimCache.tolerations | nindent 4 }}
+  {{- end }}
+  {{- if .Values.nimCache.resources }}
+  resources:
+    {{- toYaml .Values.nimCache.resources | nindent 4 }}
+  {{- end }}
+{{- end }}

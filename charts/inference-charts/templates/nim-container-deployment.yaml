@@ -27,7 +27,7 @@ spec:
       imagePullSecrets:
         {{- toYaml .Values.imagePullSecrets | nindent 8 }}
       {{- end }}
-      {{- with .Values.inference.modelServer.deployment.nim.podSecurityContext }}
+      {{- with .Values.inference.modelServer.deployment.nimContainer.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -39,36 +39,36 @@ spec:
         - containerPort: 8000
           name: http
         env:
-        {{- range $key, $value := .Values.inference.modelServer.deployment.nim.env }}
+        {{- range $key, $value := .Values.inference.modelServer.deployment.nimContainer.env }}
         - name: {{ $key }}
           value: {{ $value | quote }}
         {{- end }}
         - name: NGC_API_KEY
           valueFrom:
             secretKeyRef:
-              name: {{ .Values.inference.modelServer.deployment.nim.secrets.ngcApiKey.name }}
-              key: {{ .Values.inference.modelServer.deployment.nim.secrets.ngcApiKey.key }}
+              name: {{ .Values.inference.modelServer.deployment.nimContainer.secrets.ngcApiKey.name }}
+              key: {{ .Values.inference.modelServer.deployment.nimContainer.secrets.ngcApiKey.key }}
         - name: HF_TOKEN
           valueFrom:
             secretKeyRef:
-              name: {{ .Values.inference.modelServer.deployment.nim.secrets.hfToken.name }}
-              key: {{ .Values.inference.modelServer.deployment.nim.secrets.hfToken.key }}
-        {{- with .Values.inference.modelServer.deployment.nim.securityContext }}
+              name: {{ .Values.inference.modelServer.deployment.nimContainer.secrets.hfToken.name }}
+              key: {{ .Values.inference.modelServer.deployment.nimContainer.secrets.hfToken.key }}
+        {{- with .Values.inference.modelServer.deployment.nimContainer.securityContext }}
         securityContext:
           {{- toYaml . | nindent 10 }}
         {{- end }}
         resources:
           {{- toYaml .Values.inference.modelServer.deployment.resources.gpu | nindent 10 }}
-        {{- if .Values.inference.modelServer.deployment.nim.shm.enabled }}
+        {{- if .Values.inference.modelServer.deployment.nimContainer.shm.enabled }}
         volumeMounts:
         - name: dev-shm
           mountPath: /dev/shm
         {{- end }}
-        {{- with .Values.inference.modelServer.deployment.nim.livenessProbe }}
+        {{- with .Values.inference.modelServer.deployment.nimContainer.livenessProbe }}
         livenessProbe:
           {{- toYaml . | nindent 10 }}
         {{- end }}
-        {{- with .Values.inference.modelServer.deployment.nim.readinessProbe }}
+        {{- with .Values.inference.modelServer.deployment.nimContainer.readinessProbe }}
         readinessProbe:
           {{- toYaml . | nindent 10 }}
         {{- end }}
@@ -104,12 +104,12 @@ spec:
                     "app.kubernetes.io/component": "{{$.Values.inference.serviceName}}"
             {{- end }}
       {{- end }}
-      {{- if .Values.inference.modelServer.deployment.nim.shm.enabled }}
+      {{- if .Values.inference.modelServer.deployment.nimContainer.shm.enabled }}
       volumes:
       - name: dev-shm
         emptyDir:
-          medium: {{ .Values.inference.modelServer.deployment.nim.shm.medium }}
-          sizeLimit: {{ .Values.inference.modelServer.deployment.nim.shm.sizeLimit }}
+          medium: {{ .Values.inference.modelServer.deployment.nimContainer.shm.medium }}
+          sizeLimit: {{ .Values.inference.modelServer.deployment.nimContainer.shm.sizeLimit }}
       {{- end }}
 ---
 apiVersion: v1
