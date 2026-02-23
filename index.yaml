@@ -3,6 +3,16 @@ entries:
   inference-charts:
   - apiVersion: v2
     appVersion: 1.0.0
+    created: "2026-02-23T17:32:13.395543695Z"
+    description: A Helm chart for AI on EKS
+    digest: 78b1a7aef179df50f30e1064a144f11daff955d84d32e170deb67ef824eeded6
+    name: inference-charts
+    type: application
+    urls:
+    - https://github.com/awslabs/ai-on-eks-charts/releases/download/inference-charts-0.2.2/inference-charts-0.2.2.tgz
+    version: 0.2.2
+  - apiVersion: v2
+    appVersion: 1.0.0
     created: "2026-01-30T16:55:04.206729475Z"
     description: A Helm chart for AI on EKS
     digest: 9379e0cf91b360dd3da1a9b2cfb5faba41d3991974e6dbda4e34e08277ac8616
@@ -31,4 +41,4 @@ entries:
     urls:
     - https://github.com/awslabs/ai-on-eks-charts/releases/download/inference-charts-0.1.0/inference-charts-0.1.0.tgz
     version: 0.1.0
-generated: "2026-01-30T16:55:04.206748253Z"
+generated: "2026-02-23T17:32:13.395566107Z"
