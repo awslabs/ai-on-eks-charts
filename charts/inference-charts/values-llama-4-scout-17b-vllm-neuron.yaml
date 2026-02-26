@@ -1,0 +1,42 @@
+model: meta-llama/Llama-4-Scout-17B-16E-Instruct
+
+modelParameters:
+  dtype: bfloat16
+  maxModelLen: 4096
+  maxNumSeqs: 4
+  maxNumBatchedTokens: 4096
+  tensorParallelSize: 16
+
+inference:
+  serviceName: llama4-scout-neuron
+  serviceNamespace: default
+  accelerator: neuron
+  framework: vllm
+
+  modelServer:
+    image:
+      repository: 763104351884.dkr.ecr.us-east-2.amazonaws.com/huggingface-vllm-inference-neuronx
+      tag: "0.11.0-optimum0.4.5-neuronx-py310-sdk2.26.1-ubuntu22.04"
+    env:
+      NEURON_CC_FLAGS: "--model-type transformer"
+      VLLM_NEURON_FRAMEWORK: "optimum"
+    deployment:
+      instanceType: trn2.48xlarge
+      resources:
+        neuron:
+          requests:
+            aws.amazon.com/neuron: "16"
+            memory: 384Gi
+          limits:
+            aws.amazon.com/neuron: "16"
+            memory: 384Gi
+      startupProbe:
+        httpGet:
+          path: /health
+          port: 8000
+        periodSeconds: 30
+        failureThreshold: 180
+
+service:
+  type: ClusterIP
+  port: 8000
