@@ -69,7 +69,13 @@ app.kubernetes.io/component: {{.Values.inference.serviceName}}
 {{- $args := list -}}
 {{ $tpsize := 1 -}}
 {{- range $key, $value := $modelParameters -}}
-  {{- $args = append $args (printf "--%s %v" ($key | kebabcase) $value) -}}
+  {{- if kindIs "bool" $value -}}
+    {{- if $value -}}
+      {{- $args = append $args (printf "--%s" ($key | kebabcase)) -}}
+    {{- end -}}
+  {{- else -}}
+    {{- $args = append $args (printf "--%s %v" ($key | kebabcase) $value) -}}
+  {{- end -}}
 {{- end -}}
 {{- if eq .Values.inference.framework "aibrix" }}
     {{- $args = append $args (printf "--served-model-name %s" .Values.inference.serviceName) }}
