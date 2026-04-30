@@ -185,6 +185,18 @@ s3ModelCopy:
   instanceType: # run the job on the specified instance
   serviceAccountName: # serviceAccountName to be used for model uploading to S3
 
+# S3 model download via init container (for vllm deployments)
+# When enabled, an init container downloads the model from S3 to a local emptyDir
+# volume before the vllm container starts serving.
+s3ModelInit:
+  enabled: false
+  s3Uri:
+  mountPath: /models
+  image:
+    repository: amazon/aws-cli
+    tag: latest
+  volumeSizeLimit:
+
 # serviceAccountName to use for deployments
 serviceAccountName: default
 

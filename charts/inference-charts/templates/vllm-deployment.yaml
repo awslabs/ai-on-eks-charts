@@ -25,6 +25,20 @@ spec:
         model.aibrix.ai/name: "{{.Values.inference.serviceName}}"
         {{- end }}
     spec:
+      {{- if .Values.s3ModelInit.enabled }}
+      initContainers:
+        - name: s3-model-download
+          image: "{{ .Values.s3ModelInit.image.repository }}:{{ .Values.s3ModelInit.image.tag }}"
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              aws configure set default.s3.preferred_transfer_client crt &&
+              mkdir -p {{ .Values.model }} &&
+              aws s3 cp --recursive {{ .Values.s3ModelInit.s3Uri }} {{ .Values.model }}/
+          volumeMounts:
+            - name: model-storage
+              mountPath: {{ .Values.s3ModelInit.mountPath }}
+      {{- end }}
       containers:
         - name: vllm
           image: "{{ .Values.inference.modelServer.image.repository }}:{{ .Values.inference.modelServer.image.tag }}"
@@ -54,6 +68,10 @@ spec:
           volumeMounts:
             - mountPath: /dev/shm
               name: dshm
+            {{- if .Values.s3ModelInit.enabled }}
+            - mountPath: {{ .Values.s3ModelInit.mountPath }}
+              name: model-storage
+            {{- end }}
           startupProbe:
             {{- toYaml .Values.inference.modelServer.deployment.startupProbe | nindent 12 }}
       {{- if eq .Values.inference.accelerator "neuron" }}
@@ -63,7 +81,10 @@ spec:
           operator: "Exists"
           effect: "NoSchedule"
       {{- end }}
-      {{- if .Values.inference.modelServer.deployment.instanceType }}
+      {{- if .Values.inference.modelServer.deployment.nodeSelector }}
+      nodeSelector:
+        {{- toYaml .Values.inference.modelServer.deployment.nodeSelector | nindent 8 }}
+      {{- else if .Values.inference.modelServer.deployment.instanceType }}
       nodeSelector:
         node.kubernetes.io/instance-type: {{ .Values.inference.modelServer.deployment.instanceType }}
       {{- end }}
@@ -79,8 +100,13 @@ spec:
               model.aibrix.ai/name: "{{.Values.inference.serviceName}}"
               {{- end }}
       {{- end }}
-      {{- if and .Values.inference.modelServer.deployment.podAffinity.enabled .Values.inference.modelServer.deployment.podAffinity.preferredDuringSchedulingIgnoredDuringExecution }}
+      {{- if or .Values.inference.modelServer.deployment.nodeAffinity (and .Values.inference.modelServer.deployment.podAffinity.enabled .Values.inference.modelServer.deployment.podAffinity.preferredDuringSchedulingIgnoredDuringExecution) }}
       affinity:
+        {{- if .Values.inference.modelServer.deployment.nodeAffinity }}
+        nodeAffinity:
+          {{- toYaml .Values.inference.modelServer.deployment.nodeAffinity | nindent 10 }}
+        {{- end }}
+        {{- if and .Values.inference.modelServer.deployment.podAffinity.enabled .Values.inference.modelServer.deployment.podAffinity.preferredDuringSchedulingIgnoredDuringExecution }}
         podAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             - topologyKey: topology.kubernetes.io/zone
@@ -90,11 +116,19 @@ spec:
                   {{- if eq .Values.inference.framework "aibrix" }}
                   model.aibrix.ai/name: "{{.Values.inference.serviceName}}"
                   {{- end }}
+        {{- end }}
       {{- end }}
       volumes:
         - name: dshm
           emptyDir:
             medium: Memory
+        {{- if .Values.s3ModelInit.enabled }}
+        - name: model-storage
+          emptyDir:
+            {{- if .Values.s3ModelInit.volumeSizeLimit }}
+            sizeLimit: {{ .Values.s3ModelInit.volumeSizeLimit }}
+            {{- end }}
+        {{- end }}
       serviceAccountName: {{ .Values.serviceAccountName }}
 ---
 apiVersion: v1
