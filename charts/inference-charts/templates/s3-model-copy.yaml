@@ -4,58 +4,89 @@ kind: ConfigMap
 metadata:
   name: s3-copy-configmap
   namespace: {{ .Values.s3ModelCopy.namespace }}
+  labels:
+    app.kubernetes.io/name: s3-model-copy
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: s3-model-copy
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
 data:
-  script.sh: |
-    #!/bin/bash
-    pip install huggingface-hub==0.35.3 hf_transfer==0.1.9
-    mkdir -p /app/download/$HUGGING_FACE_MODEL
-    apt update && apt install -y curl unzip
-    ARCH=$(uname -m)
-    if [ "$ARCH" != "x86_64" ] && [ "$ARCH" != "aarch64" ]; then
-        echo "Unsupported architecture: $ARCH. Only x86_64 and aarch64 are supported."
-        exit 1
-    fi
-    curl "https://awscli.amazonaws.com/awscli-exe-linux-${ARCH}-2.31.16.zip" -o "awscliv2.zip"
-    unzip -q awscliv2.zip
-    ./aws/install
-    aws --version
-    hf download --exclude original/ metal/ --local-dir /app/download/$HUGGING_FACE_MODEL $HUGGING_FACE_MODEL
-    aws s3 cp --recursive /app/download/ s3://$S3_PATH
-    aws s3 sync --delete /app/download/$HUGGING_FACE_MODEL/ s3://$S3_PATH/$HUGGING_FACE_MODEL/
+  hf_s3_sync.py: |
+{{ .Files.Get "files/hf_s3_sync.py" | indent 4 }}
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: s3-copy
+  name: {{ include "inference-charts.s3ModelCopyName" . }}
   namespace: {{ .Values.s3ModelCopy.namespace }}
+  labels:
+    app.kubernetes.io/name: s3-model-copy
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: s3-model-copy
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
 spec:
   template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: s3-model-copy
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: s3-model-copy
     spec:
-      {{- if .Values.s3ModelCopy.instanceType }}
+      serviceAccountName: "{{ if .Values.s3ModelCopy.serviceAccountName }}{{ .Values.s3ModelCopy.serviceAccountName }}{{ else }}{{ .Values.serviceAccountName }}{{ end }}"
+      {{- with .Values.s3ModelCopy.nodeSelector }}
       nodeSelector:
-        node.kubernetes.io/instance-type: {{ .Values.s3ModelCopy.instanceType }}
+        {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- with .Values.s3ModelCopy.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- include "inference-charts.s3ModelCopyAffinity" . | indent 6 }}
+      terminationGracePeriodSeconds: {{ .Values.s3ModelCopy.terminationGracePeriodSeconds | default 120 }}
       containers:
         - name: s3copy
-          image: python:3.13-slim
-          command: ["/bin/sh", "/app/script.sh"]
+          image: public.ecr.aws/amazonlinux/amazonlinux:2023
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+              echo "Installing dependencies..."
+              dnf install -y python3.11 python3.11-pip --quiet
+              pip3.11 install --quiet boto3[crt] requests huggingface_hub hf_xet hf_transfer
+
+              echo "Starting sync..."
+              exec python3.11 -u /app/hf_s3_sync.py \
+                "{{ .Values.s3ModelCopy.model }}" \
+                "{{ .Values.s3ModelCopy.s3Bucket }}" \
+                {{ include "inference-charts.s3ModelCopyParameters" . }}
+          {{- if .Values.s3ModelCopy.hfTokenSecret.envFrom }}
+          envFrom:
+            - secretRef:
+                name: {{ .Values.s3ModelCopy.hfTokenSecret.name }}
+          {{- end }}
           env:
-            - name: HUGGING_FACE_HUB_TOKEN
+            {{- if not .Values.s3ModelCopy.hfTokenSecret.envFrom }}
+            - name: HF_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: hf-token
-                  key: token
+                  name: {{ .Values.s3ModelCopy.hfTokenSecret.name }}
+                  key: {{ .Values.s3ModelCopy.hfTokenSecret.key }}
+            {{- end }}
             - name: HF_HUB_ENABLE_HF_TRANSFER
               value: "1"
-            - name: HUGGING_FACE_MODEL
-              value: "{{ .Values.s3ModelCopy.model }}"
-            - name: S3_PATH
-              value: "{{ .Values.s3ModelCopy.s3Path }}"
+            {{- if eq (.Values.s3ModelCopy.parameters.mode | default "xet") "xet" }}
+            - name: HF_XET_HIGH_PERFORMANCE
+              value: "1"
+            {{- end }}
+            {{- with .Values.s3ModelCopy.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           volumeMounts:
-            - mountPath: /app/script.sh
+            - mountPath: /app/hf_s3_sync.py
               name: script
-              subPath: script.sh
-      serviceAccountName: "{{ if .Values.s3ModelCopy.serviceAccountName }}{{ .Values.s3ModelCopy.serviceAccountName }}{{ else }}{{ .Values.serviceAccountName }}{{ end }}"
+              subPath: hf_s3_sync.py
+          resources:
+            {{- include "inference-charts.s3ModelCopyResources" . | nindent 12 }}
       restartPolicy: Never
       volumes:
         - name: script

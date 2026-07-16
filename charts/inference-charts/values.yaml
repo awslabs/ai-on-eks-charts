@@ -179,11 +179,86 @@ inference:
     env: {}
 
 s3ModelCopy:
-  model:
-  s3Path:
+  model: # HuggingFace model name or path (e.g. meta-llama/Meta-Llama-3-8B)
+  s3Bucket: # S3 bucket name (e.g. my-bucket)
+  s3Prefix: # S3 key prefix (default: s3ModelCopy.model)
   namespace:
-  instanceType: # run the job on the specified instance
+  # HuggingFace token secret configuration.
+  # Option 1 (default): secretKeyRef — mounts a single key from the secret as HF_TOKEN env var.
+  # Option 2: envFrom — loads all keys from the secret as env vars (secret must contain HF_TOKEN key).
+  hfTokenSecret:
+    name: hf-token # Name of the Kubernetes secret
+    key: token # Key within the secret containing the token (used when envFrom: false)
+    envFrom: false # Set to true to use envFrom (secret must have HF_TOKEN as a key)
+  nodeSelector: {} # e.g. {node.kubernetes.io/instance-type: "m5.4xlarge"}
+  tolerations: [] # e.g. [{key: "nvidia.com/gpu", operator: "Exists", effect: "NoSchedule"}]
+  # Storage size for ephemeral disk (used as ephemeral-storage request/limit and
+  # as the Gt threshold for NVMe node affinity when requireLocalNvme is true).
+  # Specify as an integer in GB.
+  storageSize: 100
+  # When requireLocalNvme is true, the chart automatically adds nodeAffinity rules
+  # requiring nodes with NVMe storage > storageSize (in GB).
+  # Uses Gt operator on both karpenter.k8s.aws/instance-local-nvme and
+  # eks.amazonaws.com/instance-local-nvme labels (OR'd). Merges with any
+  # user-provided affinity below.
+  requireLocalNvme: false
+  # When requireNetworkBandwidth is set to a value (in Mbps), the chart automatically
+  # adds nodeAffinity rules requiring nodes with network bandwidth > that value.
+  # Uses Gt operator on both karpenter.k8s.aws/instance-network-bandwidth and
+  # eks.amazonaws.com/instance-network-bandwidth labels (OR'd). Merges with any
+  # user-provided affinity below.
+  requireNetworkBandwidth: # Minimum network bandwidth in Mbps (e.g. 25000). Empty to disable.
+  # Additional affinity rules for pod scheduling. Merged with auto-generated NVMe
+  # affinity when requireLocalNvme is true.
+  affinity: {}
+  terminationGracePeriodSeconds: 120 # Time to allow graceful shutdown before SIGKILL
   serviceAccountName: # serviceAccountName to be used for model uploading to S3
+  env: [] # Extra env vars, e.g. [{name: "HTTP_PROXY", value: "http://proxy:3128"}]
+  # Memory usage depends on transfer mode and concurrency settings.
+  # In stream mode, memory ≈ fileWorkers × downloadWorkers × downloadChunkSize (MB).
+  #
+  # In xet mode, hf_xet uses internal download buffers controlled by env vars.
+  # HF_XET_HIGH_PERFORMANCE=1 (enabled by default in xet mode) raises these significantly:
+  #
+  #   Env Variable                                           | Default | HP Mode
+  #   ------------------------------------------------------|---------|--------
+  #   HF_XET_RECONSTRUCTION_DOWNLOAD_BUFFER_SIZE            | 2GB     | 16GB
+  #   HF_XET_RECONSTRUCTION_DOWNLOAD_BUFFER_PERFILE_SIZE    | 512MB   | 2GB
+  #   HF_XET_RECONSTRUCTION_DOWNLOAD_BUFFER_LIMIT           | 8GB     | 64GB
+  #   HF_XET_RECONSTRUCTION_MIN_RECONSTRUCTION_FETCH_SIZE   | 256MB   | 1GB
+  #   HF_XET_RECONSTRUCTION_MAX_RECONSTRUCTION_FETCH_SIZE   | 8GB     | 16GB
+  #   HF_XET_RECONSTRUCTION_TARGET_BLOCK_COMPLETION_TIME    | 15m     | —
+  #   HF_XET_RECONSTRUCTION_MIN_PREFETCH_BUFFER             | 1GB     | —
+  #
+  # With HP mode enabled, the download buffer limit alone is 64GB.
+  # Set memory requests/limits accordingly, or override these via s3ModelCopy.env.
+  # See: https://huggingface.co/docs/hub/en/xet/using-xet-storage#download-buffers
+  #
+  # Ephemeral Storage (xet mode):
+  # In xet mode, files are downloaded to local disk (tempDir) before uploading to S3.
+  # Disk usage ≈ max_file_size × fileWorkers (files are deleted after upload).
+  # For large models (e.g. 70B+ params), individual shard files can be 5-10GB each,
+  # so with fileWorkers=4 you may need 40GB+ of ephemeral storage.
+  # Request ephemeral-storage to ensure the pod gets scheduled on a node with enough disk,
+  # and set a limit to prevent the pod from being evicted by the kubelet.
+  # In stream mode, no local disk is needed (data flows through memory to S3).
+  resources:
+    requests:
+      cpu: "4"
+      memory: "64Gi"
+    limits:
+      memory: "64Gi"
+  parameters:
+    mode: xet # Transfer mode: xet or stream
+    transferClient: crt # S3 upload client: crt (AWS CRT, faster) or default (classic threading)
+    fileWorkers: 4 # Number of files to transfer concurrently
+    uploadWorkers: 16 # Parallel S3 upload threads per file
+    downloadWorkers: 16 # Parallel range-request downloads per file (stream mode)
+    downloadChunkSize: 16 # Download chunk size in MB (stream mode)
+    partSize: 16 # S3 multipart upload part size in MB
+    progressInterval: 10 # Seconds between progress log lines
+    tempDir: /tmp/hf_sync # Local temp directory (xet mode)
+    force: false # Re-upload all files ignoring sync check
 
 # serviceAccountName to use for deployments
 serviceAccountName: default

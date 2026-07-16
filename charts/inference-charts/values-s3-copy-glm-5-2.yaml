@@ -1,0 +1,15 @@
+# Completed: 295/295 files transferred
+# Transferred: 1.37 TB
+# Total time: 904.2s
+# Average speed: 1.55 GB/s
+s3ModelCopy:
+  namespace: default
+  model: zai-org/GLM-5.2
+  s3Bucket: my-models-bucket # S3 bucket name
+  serviceAccountName: default # Ensure service account has S3 permissions
+  requireLocalNvme: true
+  storageSize: 200 # 35 (fileWorkers) * ~5GB (max size of single file) = 175GB storage
+  requireNetworkBandwidth: 25000
+  parameters:
+    transferClient: "crt"
+    fileWorkers: 35

@@ -135,3 +135,25 @@ No inference service was enabled. Please set both accelerator and framework valu
 For example:
   $ helm upgrade {{ .Release.Name }} . --set inference.accelerator=gpu --set inference.framework=vllm
 {{- end }}
+
+{{- if .Values.s3ModelCopy.model }}
+
+S3 Model Copy Job:
+
+  Model: {{ .Values.s3ModelCopy.model }}
+  Destination: s3://{{ .Values.s3ModelCopy.s3Bucket }}/{{ .Values.s3ModelCopy.s3Prefix | default .Values.s3ModelCopy.model }}
+  Namespace: {{ .Values.s3ModelCopy.namespace }}
+  Job Name: {{ include "inference-charts.s3ModelCopyName" . }}
+
+Track progress:
+  $ kubectl logs -f -l app.kubernetes.io/name=s3-model-copy,app.kubernetes.io/instance={{ .Release.Name }} -n {{ .Values.s3ModelCopy.namespace }}
+
+Check job status:
+  $ kubectl get job {{ include "inference-charts.s3ModelCopyName" . }} -n {{ .Values.s3ModelCopy.namespace }}
+
+Wait for completion:
+  $ kubectl wait --for=condition=Complete job/{{ include "inference-charts.s3ModelCopyName" . }} -n {{ .Values.s3ModelCopy.namespace }} --timeout=3600s
+
+Once the job completes successfully, you can uninstall this release:
+  $ helm uninstall {{ .Release.Name }} -n {{ .Values.s3ModelCopy.namespace }}
+{{- end }}
