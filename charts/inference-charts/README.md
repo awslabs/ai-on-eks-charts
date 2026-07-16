@@ -173,7 +173,7 @@ The following table lists the configurable parameters of the inference-charts ch
 | `fluentbit.image.tag`                                                    | Fluent Bit image tag                                                                | `3.2.2`                                                                     |
 | `s3ModelCopy.namespace`                                                  | Namespace for S3 model copy job                                                     | `default`                                                                   |
 | `s3ModelCopy.model`                                                      | Hugging Face model ID to copy to S3                                                 | Not set                                                                     |
-| `s3ModelCopy.s3Path`                                                     | S3 path where model should be uploaded                                              | Not set                                                                     |
+| `s3ModelCopy.s3Bucket`                                                   | S3 bucket name for model upload                                                     | Not set                                                                     |
 | `serviceAccountName`                                                     | Service account name                                                                | `default`                                                                   |
 
 ### Model Parameters
@@ -447,42 +447,134 @@ curl -X POST http://localhost:8000/v1/generations \
 
 ## S3 Model Copy
 
-The chart includes an S3 Model Copy feature that allows you to download models from Hugging Face Hub and upload them to
-S3 storage. This is useful for:
+The chart includes an S3 Model Copy feature that downloads models from Hugging Face Hub and uploads them to S3 storage. This is useful for:
 
-- Pre-staging models in S3 for faster deployment
-- Creating model repositories in private S3 buckets
-- Reducing inference startup time by leveraging AWS internal network
+- Pre-staging models in S3 for faster inference startup (load from S3 instead of HuggingFace at runtime)
+- Creating model caches in private S3 buckets within your VPC
+- Reducing cold-start time by leveraging high-bandwidth AWS internal networking
+
+The job runs a Python script (`hf_s3_sync.py`) that supports two transfer modes and incremental sync (only transfers new or modified files).
+
+### Transfer Modes
+
+| Mode | How it works | Disk needed | Best for |
+|------|-------------|-------------|----------|
+| `xet` (default) | Downloads files to local disk via the `hf_xet` Rust backend, then uploads to S3 | Yes (`max_file_size × fileWorkers`) | Maximum download speed from HuggingFace |
+| `stream` | Streams byte ranges from HF CDN directly into S3 multipart uploads (no disk) | No | Memory-constrained environments or when disk is unavailable |
 
 ### S3 Model Copy Configuration
 
-The S3 Model Copy feature is implemented as a Kubernetes Job that runs independently of inference deployments.
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `s3ModelCopy.model` | HuggingFace model ID (e.g. `deepseek-ai/DeepSeek-V3`) | Not set |
+| `s3ModelCopy.s3Bucket` | Target S3 bucket name | Not set |
+| `s3ModelCopy.s3Prefix` | S3 key prefix (default: model name) | Model name |
+| `s3ModelCopy.namespace` | Namespace for the job | `default` |
+| `s3ModelCopy.serviceAccountName` | Service account with S3 write permissions | `default` |
+| `s3ModelCopy.storageSize` | Ephemeral storage in GB (also used as NVMe affinity threshold) | `100` |
+| `s3ModelCopy.requireLocalNvme` | Require nodes with NVMe > `storageSize` GB | `false` |
+| `s3ModelCopy.requireNetworkBandwidth` | Require nodes with network bandwidth > this value (Mbps). Empty to disable | Not set |
+| `s3ModelCopy.hfTokenSecret.name` | Kubernetes secret containing HF token | `hf-token` |
+| `s3ModelCopy.hfTokenSecret.key` | Key within the secret | `token` |
+| `s3ModelCopy.hfTokenSecret.envFrom` | Use `envFrom` instead of `secretKeyRef` (secret must contain `HF_TOKEN` key) | `false` |
+| `s3ModelCopy.resources` | Pod resource requests/limits | 4 CPU, 64Gi memory |
+| `s3ModelCopy.nodeSelector` | Node selector for scheduling | `{}` |
+| `s3ModelCopy.tolerations` | Tolerations for scheduling | `[]` |
+| `s3ModelCopy.affinity` | Additional affinity rules (merged with auto-generated rules) | `{}` |
+| `s3ModelCopy.env` | Extra environment variables | `[]` |
+| `s3ModelCopy.terminationGracePeriodSeconds` | Grace period for shutdown | `120` |
 
-| Parameter               | Description                               | Default   |
-|-------------------------|-------------------------------------------|-----------|
-| `s3ModelCopy.namespace` | Namespace for the S3 copy job             | `default` |
-| `s3ModelCopy.model`     | Hugging Face model ID to download         | Not set   |
-| `s3ModelCopy.s3Path`    | S3 path where model should be uploaded    | Not set   |
-| `serviceAccountName`    | Service account with S3 write permissions | `default` |
+### Transfer Parameters
+
+Parameters under `s3ModelCopy.parameters` control transfer behavior:
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `mode` | Transfer mode: `xet` or `stream` | `xet` |
+| `transferClient` | S3 upload client: `crt` (AWS CRT, faster) or `default` (classic threading) | `default` |
+| `fileWorkers` | Number of files transferred concurrently | `4` |
+| `uploadWorkers` | Parallel S3 upload threads per file | `16` |
+| `downloadWorkers` | Parallel range-request downloads per file (stream mode only) | `16` |
+| `downloadChunkSize` | Download chunk size in MB (stream mode only) | `16` |
+| `partSize` | S3 multipart upload part size in MB | `16` |
+| `progressInterval` | Seconds between progress log lines | `10` |
+| `tempDir` | Local temp directory for downloads (xet mode only) | `/tmp/hf_sync` |
+| `force` | Re-upload all files, ignoring sync check | `false` |
+
+### Node Affinity (Auto-Generated)
+
+When `requireLocalNvme` and/or `requireNetworkBandwidth` are set, the chart automatically generates `nodeAffinity` rules. Both requirements are AND'd within the same `nodeSelectorTerm`, so a node must satisfy all configured constraints:
+
+```yaml
+# Example: require NVMe > 200 GB AND network > 25 Gbps
+s3ModelCopy:
+  requireLocalNvme: true
+  storageSize: 200
+  requireNetworkBandwidth: 25000
+```
+
+This generates affinity requiring nodes labeled with both sufficient NVMe storage and network bandwidth (using either `karpenter.k8s.aws/*` or `eks.amazonaws.com/*` labels).
 
 ### Prerequisites for S3 Model Copy
 
-1. **Service Account with S3 Permissions**: The service account must have IAM permissions to write to your target S3
-   bucket. It is suggested to create a service account and
-   use [Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html) to grant the service account
-   permission to S3. A service account will also be needed for loading the models from S3 in the inference server.
-2. **Hugging Face Token**: Required for downloading models (same `hf-token` secret used by inference deployments)
+1. **Service Account with S3 Permissions**: Use [EKS Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html) or IRSA to grant the service account `s3:PutObject`, `s3:GetObject`, and `s3:ListBucket` permissions on the target bucket.
+2. **Hugging Face Token**: Required for gated/private models. Create a secret with your token.
+3. **AWS CRT (optional)**: To use `transferClient: crt`, the `awscrt` Python package must be available. It's installed automatically by the job container.
 
-### Example S3 Model Copy Configuration
+### Example: Small Model (Llama 3 8B)
 
 ```yaml
 s3ModelCopy:
   namespace: default
   model: NousResearch/Meta-Llama-3-8B-Instruct
-  s3Path: my-model-bucket/ # Model will be copied as s3://my-model-bucket/NousResearch/Meta-Llama-3-8B-Instruct
-
-serviceAccountName: s3-model-copy-sa  # Service account with S3 write permissions
+  s3Bucket: my-models-bucket
+  serviceAccountName: s3-model-copy-sa
 ```
+
+```bash
+helm install s3-copy-llama3 ai-on-eks/inference-charts -f values-s3-copy-llama3-8b.yaml
+```
+
+### Example: Large Model with High-Bandwidth Node (GLM 5.2)
+
+For very large models, use high file-worker concurrency and request nodes with NVMe and high network bandwidth:
+
+```yaml
+s3ModelCopy:
+  namespace: dynamo-system
+  model: zai-org/GLM-5.2
+  s3Bucket: my-models-bucket
+  serviceAccountName: s3-models-sync-sa
+  requireLocalNvme: true
+  storageSize: 200
+  requireNetworkBandwidth: 25000
+  hfTokenSecret:
+    name: hf-token-secret
+    envFrom: true
+  parameters:
+    fileWorkers: 35
+    uploadWorkers: 16
+    partSize: 16
+```
+
+### Performance Tuning
+
+**Upload is slow (< 100 MB/s)?**
+- Ensure your node has sufficient network bandwidth. Set `requireNetworkBandwidth: 25000` (25 Gbps) or higher.
+- Check if traffic goes through a NAT gateway — use a VPC S3 gateway endpoint instead.
+- Try `transferClient: crt` for the AWS CRT-based upload client which can be faster.
+
+**Download is slow?**
+- In xet mode, set `HF_XET_HIGH_PERFORMANCE: "1"` (enabled by default) for maximum download throughput.
+- Increase `fileWorkers` to keep the download pipeline saturated while uploads complete.
+
+**Disk pressure?**
+- In xet mode, disk usage ≈ `max_file_size × fileWorkers`. Reduce `fileWorkers` or increase `storageSize`.
+- Use `stream` mode to avoid local disk entirely.
+
+**Memory usage?**
+- In xet mode with `HF_XET_HIGH_PERFORMANCE=1`, the download buffer limit is 64 GB. Set memory requests accordingly, or override via `s3ModelCopy.env`.
+- In stream mode, memory ≈ `fileWorkers × downloadWorkers × downloadChunkSize`.
 
 ## Examples
 
@@ -912,9 +1004,15 @@ Create a custom values file for copying any model to S3:
 s3ModelCopy:
   namespace: default
   model: deepseek-ai/DeepSeek-R1
-  s3Path: my-models-bucket/
-
-serviceAccountName: s3-copy-service-account
+  s3Bucket: my-models-bucket
+  serviceAccountName: s3-copy-service-account
+  requireLocalNvme: true
+  storageSize: 500
+  requireNetworkBandwidth: 25000
+  parameters:
+    fileWorkers: 20
+    uploadWorkers: 16
+    partSize: 64
 ```
 
 Then deploy:
