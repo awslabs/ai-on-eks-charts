@@ -1,0 +1,31 @@
+# GLM-5.2 FP8 (~700GB weights) fits a single p5en.48xlarge (8x H200, 1128GB HBM).
+# Pair with values-s3-copy-glm-5-2.yaml to stage weights in S3 before first deploy.
+model: zai-org/GLM-5.2-FP8
+
+modelParameters:
+  maxModelLen: 131072
+  tensorParallelSize: 8
+  gpuMemoryUtilization: 0.92
+  enablePrefixCaching: true
+  enableAutoToolChoice: true
+  toolCallParser: glm47
+  reasoningParser: glm47
+
+inference:
+  serviceName: glm-5-2-vllm
+  serviceNamespace: default
+  accelerator: gpu
+  framework: vllm
+
+  modelServer:
+    image:
+      repository: public.ecr.aws/deep-learning-containers/vllm
+      tag: 0.10.2-gpu-py312-ec2
+    deployment:
+      resources:
+        gpu:
+          requests:
+            nvidia.com/gpu: 8
+          limits:
+            nvidia.com/gpu: 8
+      instanceType: p5en.48xlarge # Highly recommended to add the instance type

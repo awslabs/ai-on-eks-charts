@@ -219,6 +219,8 @@ The chart includes pre-configured values files for the following models:
 #### Language Models
 
 - **DeepSeek R1 Distill Llama 8B**: `values-deepseek-r1-distill-llama-8b-ray-vllm-gpu.yaml` (Ray-VLLM)
+- **GLM-4.5-Air**: `values-glm-4-5-air-vllm.yaml` (VLLM)
+- **GLM-5.2**: `values-glm-5-2-vllm.yaml` (VLLM)
 - **Llama 3.2 1B**: `values-llama-32-1b-vllm.yaml` (VLLM), `values-llama-32-1b-ray-vllm.yaml` (Ray-VLLM),
   `values-llama-32-1b-ray-vllm-autoscaling.yaml` (Ray-VLLM with autoscaling),
   `values-llama-32-1b-aibrix.yaml` (AIBrix), and `values-llama-32-1b-triton-vllm-gpu.yaml` (Triton-VLLM)
