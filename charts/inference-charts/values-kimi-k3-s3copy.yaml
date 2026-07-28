@@ -1,0 +1,14 @@
+# Completed: 118/118 files transferred
+# Transferred: 1.42 TB
+# Total time: 906.3s
+# Average speed: 1.60 GB/s
+s3ModelCopy:
+  namespace: default
+  model: moonshotai/Kimi-K3
+  s3Bucket: my-models-bucket # S3 bucket name
+  serviceAccountName: default # Ensure service account has S3 permissions
+  requireLocalNvme: true
+  storageSize: 600 # 35 (fileWorkers) * ~17GB (max size of single file) = 595GB storage
+  requireNetworkBandwidth: 25000
+  parameters:
+    fileWorkers: 35

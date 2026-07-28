@@ -4,6 +4,8 @@ kind: RayService
 metadata:
   name: {{.Values.inference.serviceName}}
   namespace: {{.Values.inference.serviceNamespace}}
+  labels:
+    {{- include "inference-charts.extraLabels" . | nindent 4 }}
 spec:
   deploymentUnhealthySecondThreshold: 900
   rayClusterConfig:

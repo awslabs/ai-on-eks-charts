@@ -4,6 +4,8 @@ kind: LeaderWorkerSet
 metadata:
   name: {{.Values.inference.serviceName}}
   namespace: {{.Values.inference.serviceNamespace}}
+  labels:
+    {{- include "inference-charts.extraLabels" . | nindent 4 }}
   annotations:
     {{- if .Values.inference.modelServer.deployment.topologySpreadConstraints.enabled }}
     leaderworkerset.sigs.k8s.io/exclusive-topology: "topology.kubernetes.io/zone"
@@ -17,6 +19,7 @@ spec:
       metadata:
         labels:
           role: leader
+          {{- include "inference-charts.extraLabels" . | nindent 10 }}
       spec:
         {{- if .Values.inference.modelServer.deployment.instanceType }}
         nodeSelector:
@@ -92,6 +95,8 @@ kind: Service
 metadata:
   name: {{.Values.inference.serviceName}}-leader
   namespace: {{.Values.inference.serviceNamespace}}
+  labels:
+    {{- include "inference-charts.extraLabels" . | nindent 4 }}
 spec:
   ports:
     - name: http

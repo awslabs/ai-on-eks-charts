@@ -74,11 +74,13 @@ app.kubernetes.io/component: {{.Values.inference.serviceName}}
       {{- $args = append $args (printf "--%s" ($key | kebabcase)) -}}
     {{- end -}}
   {{- else -}}
-    {{- $args = append $args (printf "--%s %v" ($key | kebabcase) $value) -}}
+    {{- $args = append $args (printf "--%s %s" ($key | kebabcase) $value) -}}
   {{- end -}}
 {{- end -}}
 {{- if eq .Values.inference.framework "aibrix" }}
     {{- $args = append $args (printf "--served-model-name %s" .Values.inference.serviceName) }}
+{{- else if .Values.modelPath }}
+    {{- $args = append $args (printf "--served-model-name %s" .Values.model) }}
 {{- end }}
 {{- if .Values.vllm.loadFormat }}
     {{- $args = append $args (printf "--load-format %s" .Values.vllm.loadFormat ) }}
@@ -97,6 +99,15 @@ app.kubernetes.io/component: {{.Values.inference.serviceName}}
 {{- define "inference-charts.s3ModelCopyName" -}}
 {{- printf "s3modelcopy-%s" .Values.s3ModelCopy.model | lower | replace "/" "-" | replace "_" "-" | replace "." "-" | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
+
+{{/*
+Extra labels from values.yaml applied to all resources
+*/}}
+{{- define "inference-charts.extraLabels" -}}
+{{- with .Values.extraLabels }}
+{{- toYaml . }}
+{{- end }}
+{{- end }}
 
 {{/*
 Render CLI arguments for hf_s3_sync.py from s3ModelCopy.parameters map.

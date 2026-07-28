@@ -32,8 +32,16 @@ vllm:
   logLevel: debug
   port: 8004
 
+# Extra labels applied to all resources (pods, deployments, services, etc.)
+extraLabels: {}
+
 # The name of the model from Hugging Face
 model: NousResearch/Llama-3.2-1B
+
+# Optional: path to the model weights (local path or S3 path).
+# When set, this is used as the first argument to the engine (e.g. vllm serve <modelPath>)
+# and "model" is passed as --served-model-name instead.
+modelPath:
 
 # Model parameters to the inference engine
 modelParameters:
@@ -82,6 +90,7 @@ inference:
       replicas: 1
       maxReplicas: 2
       minReplicas: 1
+      sharedMemory: 1Gi
       resources:
         gpu:
           requests:
@@ -300,3 +309,8 @@ nimService:
     pullPolicy: IfNotPresent
   authSecret: ngc-api
   replicas: 1
+
+hfTokenSecret:
+  name: hf-token # Name of the Kubernetes secret
+  key: token # Key within the secret containing the token (used when envFrom: false)
+  envFrom: false # Set to true to use envFrom (secret must have HF_TOKEN as a key)
