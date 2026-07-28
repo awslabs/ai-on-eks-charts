@@ -17,8 +17,6 @@ modelParameters:
   enableAutoToolChoice: true
   toolCallParser: kimi_k3
   reasoningParser: kimi_k3
-  enableMetrics: true
-  enableMfuMetrics: true
 
 inference:
   serviceName: kimi-k3-vllm
