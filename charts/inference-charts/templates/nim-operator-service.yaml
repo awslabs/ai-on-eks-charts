@@ -10,6 +10,7 @@ metadata:
     {{- with .Values.nimService.labels }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
+    {{- include "inference-charts.extraLabels" . | nindent 4 }}
 spec:
   image:
     repository: {{ .Values.nimService.image.repository }}

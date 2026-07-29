@@ -9,6 +9,7 @@ metadata:
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/component: s3-model-copy
     app.kubernetes.io/managed-by: {{ .Release.Service }}
+    {{- include "inference-charts.extraLabels" . | nindent 4 }}
 data:
   hf_s3_sync.py: |
 {{ .Files.Get "files/hf_s3_sync.py" | indent 4 }}
@@ -23,6 +24,7 @@ metadata:
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/component: s3-model-copy
     app.kubernetes.io/managed-by: {{ .Release.Service }}
+    {{- include "inference-charts.extraLabels" . | nindent 4 }}
 spec:
   template:
     metadata:
@@ -30,6 +32,7 @@ spec:
         app.kubernetes.io/name: s3-model-copy
         app.kubernetes.io/instance: {{ .Release.Name }}
         app.kubernetes.io/component: s3-model-copy
+        {{- include "inference-charts.extraLabels" . | nindent 8 }}
     spec:
       serviceAccountName: "{{ if .Values.s3ModelCopy.serviceAccountName }}{{ .Values.s3ModelCopy.serviceAccountName }}{{ else }}{{ .Values.serviceAccountName }}{{ end }}"
       {{- with .Values.s3ModelCopy.nodeSelector }}

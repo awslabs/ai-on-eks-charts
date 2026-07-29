@@ -7,6 +7,7 @@ metadata:
   labels:
     {{- include "inference-charts.labels" . | nindent 4 }}
     "app.kubernetes.io/component": "{{ .Values.inference.serviceName }}"
+    {{- include "inference-charts.extraLabels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.inference.modelServer.deployment.replicas }}
   selector:
@@ -18,6 +19,7 @@ spec:
       labels:
         {{- include "inference-charts.selectorLabels" . | nindent 8 }}
         "app.kubernetes.io/component": "{{ .Values.inference.serviceName }}"
+        {{- include "inference-charts.extraLabels" . | nindent 8 }}
       {{- with .Values.inference.modelServer.deployment.annotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
@@ -119,6 +121,7 @@ metadata:
   namespace: {{ .Values.inference.serviceNamespace }}
   labels:
     {{- include "inference-charts.labels" . | nindent 4 }}
+    {{- include "inference-charts.extraLabels" . | nindent 4 }}
   {{- with .Values.service.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
