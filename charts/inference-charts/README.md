@@ -17,6 +17,8 @@ The chart supports the following deployment types:
 - GPU-based Diffusers deployments
 - GPU-based NVIDIA NIM Container deployments
 - GPU-based NVIDIA NIM Operator deployments
+- Graviton (ARM64 CPU) llama.cpp deployments
+- Graviton (ARM64 CPU) VLLM deployments
 - Neuron-based VLLM deployments
 - Neuron-based Ray-VLLM deployments
 - Neuron-based Triton-VLLM deployments (Coming Soon)
@@ -96,6 +98,39 @@ The chart supports the following deployment types:
 - Ideal for text-to-image, image-to-image, and other generative AI workloads
 - Supports multiple pipeline types: `stable-diffusion`, `diffusion`, `kolors`, `stablediffusion3`, `omnigen`
 
+**llama.cpp Deployments** (`framework: llama-cpp`):
+
+- CPU-based inference using the `llama.cpp` OpenAI-compatible `llama-server`
+- Runs on AWS Graviton (ARM64) instances — set `accelerator: graviton`
+- Pulls GGUF-quantized models directly from Hugging Face via `-hf`
+- No GPU or Neuron device plugin required — requests CPU/memory only
+
+### Graviton (ARM64 CPU) Accelerator
+
+Set `inference.accelerator: graviton` to target AWS Graviton (ARM64) CPU instances. Unlike `gpu`
+and `neuron`, the graviton accelerator requests only CPU and memory (no device-plugin resource),
+and the chart automatically adds a `nodeAffinity` rule requiring `kubernetes.io/arch: arm64` so
+pods land on Graviton nodes. Configure the request/limit under
+`inference.modelServer.deployment.resources.graviton`.
+
+Graviton works with the `llama-cpp` framework and with CPU/ARM64 builds of `vllm`:
+
+```yaml
+inference:
+  accelerator: graviton
+  framework: llama-cpp   # or vllm with an ARM64 CPU image
+  modelServer:
+    deployment:
+      resources:
+        graviton:
+          requests:
+            cpu: 4
+            memory: 8Gi
+          limits:
+            cpu: 8
+            memory: 16Gi
+```
+
 ## Prerequisites
 
 - Kubernetes cluster with GPU or AWS Neuron nodes
@@ -140,8 +175,8 @@ The following table lists the configurable parameters of the inference-charts ch
 | Parameter                                                                | Description                                                                         | Default                                                                     |
 |--------------------------------------------------------------------------|-------------------------------------------------------------------------------------|-----------------------------------------------------------------------------|
 | `global.image.pullPolicy`                                                | Global image pull policy                                                            | `IfNotPresent`                                                              |
-| `inference.accelerator`                                                  | Accelerator type to use (gpu or neuron)                                             | `gpu`                                                                       |
-| `inference.framework`                                                    | Framework type to use (vllm, ray-vllm, triton-vllm, aibrix, lws-vllm,  diffusers, nim-container, or nim-operator) | `vllm`                                                                      |
+| `inference.accelerator`                                                  | Accelerator type to use (gpu, neuron, or graviton)                                  | `gpu`                                                                       |
+| `inference.framework`                                                    | Framework type to use (vllm, ray-vllm, triton-vllm, aibrix, lws-vllm, llama-cpp, diffusers, nim-container, or nim-operator) | `vllm`                                                                      |
 | `inference.serviceName`                                                  | Name of the inference service                                                       | `inference`                                                                 |
 | `inference.serviceNamespace`                                             | Namespace for the inference service                                                 | `default`                                                                   |
 | `inference.modelServer.image.repository`                                 | Model server image repository                                                       | `vllm/vllm-openai`                                                          |
@@ -251,6 +286,11 @@ The chart includes pre-configured values files for the following models:
 - **Llama 3.2 1B Instruct**:
   - Cache: `values-llama-32-1b-instruct-nim-operator-cache.yaml` (NIM-operator-cache)
   - Service: `values-llama-32-1b-instruct-nim-operator-service.yaml` (NIM-operator-service)
+
+### Graviton (ARM64 CPU) Models
+
+- **Llama 3.2 1B Instruct**: `values-llama-32-1b-instruct-llama-cpp.yaml` (llama.cpp)
+- **Llama 3.2 1B**: `values-llama-32-1b-vllm-graviton.yaml` (VLLM, ARM64 CPU build)
 
 ### Neuron Models
 
@@ -720,6 +760,26 @@ helm repo add ai-on-eks https://awslabs.github.io/ai-on-eks-charts/
 helm repo update
 
 helm install qwen3-vllm ai-on-eks/inference-charts -f https://raw.githubusercontent.com/awslabs/ai-on-eks-charts/refs/heads/main/charts/inference-charts/values-qwen3-1.7b-vllm.yaml
+```
+
+### Deploy Graviton (ARM64 CPU) Models
+
+#### Deploy llama.cpp with Llama 3.2 1B Instruct on Graviton
+
+```bash
+helm repo add ai-on-eks https://awslabs.github.io/ai-on-eks-charts/
+helm repo update
+
+helm install llama-cpp-graviton ai-on-eks/inference-charts -f https://raw.githubusercontent.com/awslabs/ai-on-eks-charts/refs/heads/main/charts/inference-charts/values-llama-32-1b-instruct-llama-cpp.yaml
+```
+
+#### Deploy VLLM with Llama 3.2 1B on Graviton (ARM64 CPU)
+
+```bash
+helm repo add ai-on-eks https://awslabs.github.io/ai-on-eks-charts/
+helm repo update
+
+helm install vllm-graviton ai-on-eks/inference-charts -f https://raw.githubusercontent.com/awslabs/ai-on-eks-charts/refs/heads/main/charts/inference-charts/values-llama-32-1b-vllm-graviton.yaml
 ```
 
 ### Deploy Diffusers Models
