@@ -85,7 +85,7 @@ app.kubernetes.io/component: {{.Values.inference.serviceName}}
 {{- if .Values.vllm.loadFormat }}
     {{- $args = append $args (printf "--load-format %s" .Values.vllm.loadFormat ) }}
 {{- end}}
-{{- if not .Values.modelParameters.tensorParallelSize}}
+{{- if and (not (.Values.modelParameters | default dict).tensorParallelSize) (ne .Values.inference.accelerator "graviton")}}
     {{- if eq .Values.inference.accelerator "neuron"}}
         {{- $tpsize = mul (index .Values.inference.modelServer.deployment.resources.neuron.requests "aws.amazon.com/neuron") 2}}
     {{- else }}
@@ -94,6 +94,68 @@ app.kubernetes.io/component: {{.Values.inference.serviceName}}
     {{- $args = append $args (printf "--tensor-parallel-size %s" ($tpsize | toString) ) }}
 {{- end}}
 {{- printf "%s" (join " " $args) | trimSuffix " " -}}
+{{- end -}}
+
+{{/*
+Select the modelServer resources block for the configured accelerator.
+gpu → resources.gpu, neuron → resources.neuron, graviton → resources.graviton.
+Falls back to the gpu block for unknown accelerators.
+*/}}
+{{- define "inference-charts.acceleratorResources" -}}
+{{- $resources := .Values.inference.modelServer.deployment.resources -}}
+{{- if eq .Values.inference.accelerator "neuron" -}}
+{{- toYaml $resources.neuron -}}
+{{- else if eq .Values.inference.accelerator "graviton" -}}
+{{- toYaml $resources.graviton -}}
+{{- else -}}
+{{- toYaml $resources.gpu -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Compute VLLM_CPU_KVCACHE_SPACE (in GiB) for graviton + vllm deployments.
+If .Values.vllm.cpuKvCacheSpace is set, it is used verbatim. Otherwise the value is
+derived as floor(graviton memory request in GiB * .Values.vllm.cpuKvCacheUtilization).
+
+The request (not the limit) is used deliberately: on the CPU backend vLLM sizes the KV
+cache against the node's free RAM, not the pod cgroup. The request is what Kubernetes
+guarantees and is always <= node allocatable, so a fraction of it cannot exceed the
+node's memory. cpuKvCacheUtilization is the CPU analogue of --gpu-memory-utilization:
+the remaining fraction of the request covers model weights + framework/runtime overhead.
+Falls back to the limit if no request is set. Only Gi/G suffixed values support
+auto-derivation; anything else (or a non-positive result) yields an empty string so the
+env var is omitted and vLLM falls back to its own default.
+*/}}
+{{- define "inference-charts.vllmCpuKvCacheSpace" -}}
+{{- if .Values.vllm.cpuKvCacheSpace -}}
+{{- .Values.vllm.cpuKvCacheSpace -}}
+{{- else -}}
+{{- $graviton := .Values.inference.modelServer.deployment.resources.graviton -}}
+{{- $mem := (($graviton.requests).memory) | default (($graviton.limits).memory) | default "" | toString -}}
+{{- $fraction := .Values.vllm.cpuKvCacheUtilization | default 0.0 | float64 -}}
+{{- if and (or (hasSuffix "Gi" $mem) (hasSuffix "G" $mem)) (gt $fraction 0.0) -}}
+{{- $gib := $mem | trimSuffix "Gi" | trimSuffix "G" | int -}}
+{{- $space := floor (mulf $gib $fraction) | int -}}
+{{- if gt $space 0 -}}
+{{- $space -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Node affinity requiring ARM64 nodes. Used by graviton deployments so they land on
+Graviton (arm64) instances regardless of instanceType being set.
+*/}}
+{{- define "inference-charts.gravitonNodeAffinity" -}}
+nodeAffinity:
+  requiredDuringSchedulingIgnoredDuringExecution:
+    nodeSelectorTerms:
+      - matchExpressions:
+          - key: kubernetes.io/arch
+            operator: In
+            values:
+              - arm64
 {{- end -}}
 
 {{- define "inference-charts.s3ModelCopyName" -}}

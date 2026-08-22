@@ -31,6 +31,25 @@ vllm:
   loadFormat: # runai_streamer
   logLevel: debug
   port: 8004
+  # CPU backend (accelerator: graviton) KV cache sizing.
+  # On the CPU backend, vLLM sizes the KV cache via VLLM_CPU_KVCACHE_SPACE (absolute GiB),
+  # NOT --gpu-memory-utilization (which the CPU backend measures against the whole node's
+  # RAM, making it unsafe when the pod's cgroup limit is smaller than the node).
+  # The chart injects VLLM_CPU_KVCACHE_SPACE for graviton + vllm deployments.
+  #   - cpuKvCacheSpace set   -> used verbatim (GiB)
+  #   - cpuKvCacheSpace empty -> derived as floor(graviton memory request in GiB * cpuKvCacheUtilization)
+  # The memory REQUEST is used (not the limit) because the CPU backend sizes the KV cache
+  # against node free RAM; the request is guaranteed and never exceeds node allocatable.
+  # cpuKvCacheUtilization is the CPU analogue of GPU --gpu-memory-utilization: the fraction of
+  # the pod's memory request devoted to the KV cache; the remainder covers weights + runtime.
+  cpuKvCacheSpace: # explicit KV cache size in GiB; empty = auto-derive from the graviton memory request
+  cpuKvCacheUtilization: 0.7 # fraction of the graviton memory request used for the KV cache
+
+# llama.cpp (framework: llama-cpp) settings
+llamaCpp:
+  # Command used to launch the server. Defaults to the binary on PATH.
+  # The official ggml-org image runs it from the workdir, so use "./llama-server" there.
+  command: llama-server
 
 # Extra labels applied to all resources (pods, deployments, services, etc.)
 extraLabels: {}
@@ -51,10 +70,11 @@ inference:
   serviceName: inference
   serviceNamespace: default
 
-  # Accelerator type: gpu or neuron
+  # Accelerator type: gpu, neuron, or graviton
+  # graviton runs on ARM64 CPU instances (no GPU/Neuron device plugin), e.g. llama.cpp or CPU vLLM builds.
   accelerator: gpu
 
-  # Framework type: vllm, ray-vllm, triton-vllm, aibrix, or lws-vllm
+  # Framework type: vllm, ray-vllm, triton-vllm, aibrix, lws-vllm, or llama-cpp
   framework:
 
   #Ray Specific Options
@@ -102,6 +122,14 @@ inference:
             aws.amazon.com/neuron: 1
           limits:
             aws.amazon.com/neuron: 1
+        # Graviton (ARM64 CPU) has no device-plugin resource; request CPU/memory only.
+        graviton:
+          requests:
+            cpu: 4
+            memory: 8Gi
+          limits:
+            cpu: 8
+            memory: 16Gi
       # NIM Container-specific configuration (NVIDIA Inference Microservices)
       # These are default values that can be overridden in model-specific values files
       nimContainer:

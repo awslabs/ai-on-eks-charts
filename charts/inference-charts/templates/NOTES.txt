@@ -18,6 +18,14 @@ The following service is available:
   http://{{ .Release.Name }}:{{ .Values.service.port }}/v1/chat/completions
 {{- end }}
 
+{{- if eq .Values.inference.framework "llama-cpp" }}
+{{ .Values.inference.accelerator | title }} llama.cpp Service:
+  $ kubectl get svc {{ .Release.Name }}
+
+  Access the OpenAI-compatible API at:
+  http://{{ .Values.inference.serviceName }}:{{ .Values.service.port }}/v1/chat/completions
+{{- end }}
+
 {{- if eq .Values.inference.framework "ray-vllm" }}
 {{ .Values.inference.accelerator | title }} Ray-VLLM Service:
   $ kubectl get svc {{ .Release.Name }}
@@ -129,8 +137,8 @@ Available API endpoints:
 {{- else }}
 No inference service was enabled. Please set both accelerator and framework values:
 
-- inference.accelerator: gpu or neuron
-- inference.framework: vllm, ray-vllm, triton-vllm, diffusers, lws-vllm, aibrix, nim-container, or nim-operator
+- inference.accelerator: gpu, neuron, or graviton
+- inference.framework: vllm, ray-vllm, triton-vllm, diffusers, lws-vllm, aibrix, llama-cpp, nim-container, or nim-operator
 
 For example:
   $ helm upgrade {{ .Release.Name }} . --set inference.accelerator=gpu --set inference.framework=vllm
