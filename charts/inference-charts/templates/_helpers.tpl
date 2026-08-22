@@ -74,7 +74,7 @@ app.kubernetes.io/component: {{.Values.inference.serviceName}}
       {{- $args = append $args (printf "--%s" ($key | kebabcase)) -}}
     {{- end -}}
   {{- else -}}
-    {{- $args = append $args (printf "--%s %v" ($key | kebabcase) $value) -}}
+    {{- $args = append $args (printf "--%s %s" ($key | kebabcase) $value) -}}
   {{- end -}}
 {{- end -}}
 {{- if eq .Values.inference.framework "aibrix" }}
