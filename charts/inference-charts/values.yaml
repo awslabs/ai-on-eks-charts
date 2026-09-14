@@ -213,6 +213,12 @@ inference:
         httpGet:
           path: /health
           port: 8000
+      # Optional; rendered when set (vllm deployment; tolerations also apply to nim-container).
+      livenessProbe: {} # e.g. {httpGet: {path: /health, port: 8000}, periodSeconds: 20}
+      readinessProbe: {} # e.g. {httpGet: {path: /health, port: 8000}, periodSeconds: 10}
+      lifecycle: {} # e.g. {preStop: {exec: {command: ["/bin/sh", "-c", "sleep 15"]}}}
+      terminationGracePeriodSeconds: # e.g. 300, so in-flight generations finish before SIGKILL
+      tolerations: [] # e.g. [{key: "nvidia.com/gpu", operator: "Exists", effect: "NoSchedule"}]
     env: {}
 
 s3ModelCopy:
