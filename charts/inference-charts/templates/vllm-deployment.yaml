@@ -68,12 +68,34 @@ spec:
               name: dshm
           startupProbe:
             {{- toYaml .Values.inference.modelServer.deployment.startupProbe | nindent 12 }}
+          {{- with .Values.inference.modelServer.deployment.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.inference.modelServer.deployment.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.inference.modelServer.deployment.lifecycle }}
+          lifecycle:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.inference.modelServer.deployment.terminationGracePeriodSeconds }}
+      terminationGracePeriodSeconds: {{ . }}
+      {{- end }}
       {{- if eq .Values.inference.accelerator "neuron" }}
       schedulerName: my-scheduler
+      {{- end }}
+      {{- if or (eq .Values.inference.accelerator "neuron") .Values.inference.modelServer.deployment.tolerations }}
       tolerations:
+        {{- if eq .Values.inference.accelerator "neuron" }}
         - key: "aws.amazon.com/neuron"
           operator: "Exists"
           effect: "NoSchedule"
+        {{- end }}
+        {{- with .Values.inference.modelServer.deployment.tolerations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       {{- end }}
       {{- if .Values.inference.modelServer.deployment.instanceType }}
       nodeSelector:
