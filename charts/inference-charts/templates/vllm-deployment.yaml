@@ -68,16 +68,16 @@ spec:
               name: dshm
           startupProbe:
             {{- toYaml .Values.inference.modelServer.deployment.startupProbe | nindent 12 }}
+          {{- with .Values.inference.modelServer.deployment.lifecycle }}
+          lifecycle:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- with .Values.inference.modelServer.deployment.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           {{- with .Values.inference.modelServer.deployment.readinessProbe }}
           readinessProbe:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          {{- with .Values.inference.modelServer.deployment.lifecycle }}
-          lifecycle:
             {{- toYaml . | nindent 12 }}
           {{- end }}
       {{- with .Values.inference.modelServer.deployment.terminationGracePeriodSeconds }}
