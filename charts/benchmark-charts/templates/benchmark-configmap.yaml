@@ -1,5 +1,4 @@
 {{- if .Values.benchmark.enabled }}
-{{- $scenario := index .Values.benchmark.scenarios .Values.benchmark.scenario }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -12,6 +11,10 @@ metadata:
     benchmark.scenario: {{ .Values.benchmark.scenario }}
 data:
   config.yml: |
+    {{- if kindIs "map" .Values.benchmark.config }}
+    {{- toYaml .Values.benchmark.config | nindent 4 }}
+    {{- else }}
+    {{- $scenario := index .Values.benchmark.scenarios .Values.benchmark.scenario }}
     api:
       type: {{ .Values.benchmark.api.type }}
       streaming: {{ .Values.benchmark.api.streaming }}
@@ -61,7 +64,12 @@ data:
       pretrained_model_name_or_path: {{ .Values.benchmark.target.tokenizerPath }}
 
     storage:
+      local_storage:
+        path: /tmp/reports
+      {{- if .Values.benchmark.storage.s3.bucketName }}
       simple_storage_service:
         bucket_name: {{ .Values.benchmark.storage.s3.bucketName | quote }}
         path: "{{ .Values.benchmark.storage.s3.pathPrefix }}/{{ .Values.benchmark.scenario }}/{{ .Values.benchmark.target.serverType }}/{{ .Values.benchmark.target.modelName }}/{{randAlpha 20}}"
+      {{- end }}
+    {{- end }}
 {{- end }}

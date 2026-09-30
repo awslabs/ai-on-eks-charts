@@ -1,11 +1,21 @@
+{{- if .Values.benchmark.enabled }}
 Benchmark job deployed: {{ .Values.benchmark.scenario | upper }}
-
+{{- if not (kindIs "map" .Values.benchmark.config) }}
 Target: {{ .Values.benchmark.target.baseUrl }}
 Model: {{ .Values.benchmark.target.modelName }}
+{{- end }}
 
-To monitor:
+To monitor (when local_storage.path is configured, JSON reports print after the run):
   kubectl logs -n {{ .Values.benchmark.namespace }} -l benchmark.scenario={{ .Values.benchmark.scenario }} -f
-
-{{- if .Values.benchmark.storage.s3.bucketName }}
+{{- if kindIs "map" .Values.benchmark.config }}
+{{- with .Values.benchmark.config.storage }}
+{{- with .simple_storage_service }}
+{{- if .bucket_name }}
+Results: s3://{{ .bucket_name }}/{{ .path }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- else if .Values.benchmark.storage.s3.bucketName }}
 Results: s3://{{ .Values.benchmark.storage.s3.bucketName }}/{{ .Values.benchmark.storage.s3.pathPrefix }}
+{{- end }}
 {{- end }}

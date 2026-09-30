@@ -11,16 +11,33 @@ benchmark:
   # Benchmark image configuration
   image:
     repository: quay.io/inference-perf/inference-perf
-    tag: v0.2.0
+    tag: v0.6.1
     pullPolicy: IfNotPresent
 
-  # Service account for benchmark jobs
+  # By default Helm creates a release-specific account. To use a preexisting
+  # account (for example, one with IRSA), set create: false and its name.
   serviceAccount:
     create: true
-    name: inference-perf-sa
-    annotations: []
+    name: ""
+    annotations: {}
 
-  # Scenario selection: baseline, saturation, sweep, or production
+  # Optional complete inference-perf config.yml (native snake_case keys). When set,
+  # replaces the scenario-generated config rather than merging with it. For example:
+  # config:
+  #   load:
+  #     type: concurrent
+  #     stages:
+  #       - concurrency_level: 8
+  #         num_requests: 40
+  #   data:
+  #     type: synthetic
+  #     input_distribution: {type: fixed, min: 512, max: 512, mean: 512, std_dev: 0}
+  #     output_distribution: {type: fixed, min: 128, max: 128, mean: 128, std_dev: 0}
+  #   storage:
+  #     local_storage:
+  #       path: /tmp/reports  # use a fixed directory to include JSON in pod logs
+  # Supply api, server, tokenizer and any report settings in the same config map.
+  config: null
   scenario: baseline
 
   # Job configuration
@@ -46,17 +63,15 @@ benchmark:
     type: completion
     streaming: true
 
-  # Storage configuration for results
+  # Generated scenarios write JSON reports locally; S3 upload is opt-in.
   storage:
     s3:
-      bucketName: "inference-perf-results"
-      # Path supports {timestamp} placeholder
+      bucketName: ""
+      # S3 key prefix; chart appends scenario, server, model and a unique suffix.
       pathPrefix: "benchmark-results"
 
   # Model dependencies to install
   dependencies:
-    # For Mistral/Llama models: sentencepiece and protobuf
-    # Qwen3 uses tiktoken (included) - no additional packages needed
     packages: []
 
   # Resource allocation for benchmark pods
@@ -68,15 +83,18 @@ benchmark:
       cpu: "4"
       memory: "8Gi"
 
-  # Co-location configuration
-  # Benchmark pods will be scheduled in the same zone as inference pods
+  # Pod scheduling constraints (for example, select and tolerate tainted CPU nodes).
+  nodeSelector: {}
+  tolerations: []
+
+  # Optional, soft same-zone placement near inference pods. Match the inference
+  # chart's app.kubernetes.io/component label and set namespaces for its namespace.
   affinity:
-    enabled: true
-    # Label selector to find inference pods
-    # NOTE: Update this to match your actual deployment's pod labels
-    # Common patterns: app: <name>, app.kubernetes.io/name: <name>
+    enabled: false
     targetLabels:
-      app: qwen3-vllm
+      app.kubernetes.io/component: inference
+    namespaces:
+      - default
 
   # Scenario-specific configurations
   scenarios:
