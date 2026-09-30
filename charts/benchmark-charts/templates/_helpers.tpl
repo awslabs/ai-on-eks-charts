@@ -47,3 +47,12 @@ Selector labels
 app.kubernetes.io/name: {{ include "benchmark-charts.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
+
+{{/* Use an owned release-specific account unless an existing name is supplied. */}}
+{{- define "benchmark-charts.serviceAccountName" -}}
+{{- if .Values.benchmark.serviceAccount.create -}}
+{{- default (printf "%s-sa" (include "benchmark-charts.fullname" .) | trunc 63 | trimSuffix "-") .Values.benchmark.serviceAccount.name -}}
+{{- else -}}
+{{- required "benchmark.serviceAccount.name is required when create=false" .Values.benchmark.serviceAccount.name -}}
+{{- end -}}
+{{- end -}}
