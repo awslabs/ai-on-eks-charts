@@ -50,6 +50,13 @@ llamaCpp:
   # Command used to launch the server. Defaults to the binary on PATH.
   # The official ggml-org image runs it from the workdir, so use "./llama-server" there.
   command: llama-server
+  # Allow up to 30 minutes for a GGUF download before checking readiness/liveness.
+  startupProbe:
+    httpGet:
+      path: /health
+      port: 8000
+    periodSeconds: 10
+    failureThreshold: 180
 
 # Extra labels applied to all resources (pods, deployments, services, etc.)
 extraLabels: {}
@@ -127,8 +134,7 @@ inference:
           requests:
             cpu: 4
             memory: 8Gi
-          limits:
-            cpu: 8
+          limits: # CPU is intentionally uncapped; an overridden CPU request must not inherit a lower limit.
             memory: 16Gi
       # NIM Container-specific configuration (NVIDIA Inference Microservices)
       # These are default values that can be overridden in model-specific values files

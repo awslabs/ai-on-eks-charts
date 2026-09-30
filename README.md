@@ -20,8 +20,7 @@ other machine learning inference services.
 
 ## Quick Start
 
-0. Create a [Hugging Face Token](https://huggingface.co/docs/hub/en/security-tokens) and store it in a kubernetes
-   secret (replace `your_huggingface_token` with the actual token)
+0. For gated models only, create a [Hugging Face Token](https://huggingface.co/docs/hub/en/security-tokens) and store it in a Kubernetes secret (replace `your_huggingface_token` with the actual token). Public models do not require this secret.
 
 ```bash
 kubectl create secret generic hf-token --from-literal=token=your_huggingface_token
