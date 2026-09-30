@@ -110,8 +110,8 @@ The chart supports the following deployment types:
 Set `inference.accelerator: graviton` to target AWS Graviton (ARM64) CPU instances. Unlike `gpu`
 and `neuron`, the graviton accelerator requests only CPU and memory (no device-plugin resource),
 and the chart automatically adds a `nodeAffinity` rule requiring `kubernetes.io/arch: arm64` so
-pods land on Graviton nodes. Configure the request/limit under
-`inference.modelServer.deployment.resources.graviton`.
+pods land on Graviton nodes. Configure requests under
+`inference.modelServer.deployment.resources.graviton`; the default leaves CPU uncapped so a larger request does not inherit a smaller limit. Add an explicit CPU limit only when needed.
 
 Graviton works with the `llama-cpp` framework and with CPU/ARM64 builds of `vllm`:
 
@@ -127,7 +127,7 @@ inference:
             cpu: 4
             memory: 8Gi
           limits:
-            cpu: 8
+            # Add cpu: 8 only when an explicit CPU cap is needed (>= requests.cpu).
             memory: 16Gi
 ```
 
@@ -138,16 +138,16 @@ inference:
 - For GPU deployments: NVIDIA device plugin installed
 - For Neuron deployments: AWS Neuron device plugin installed
 - For LeaderWorkerSet deployments: LeaderWorkerSet CRD installed
-- Hugging Face Hub token (stored as a Kubernetes secret named `hf-token`)
+- Hugging Face Hub token for gated models (optional for public models; use secret `hf-token`)
 - For Ray: KubeRay Infrastructure
 - For AIBrix: AIBrix Infrastructure
 - For S3 Model Copy: Service account with S3 write permissions
 
 ## Installation
 
-### Create Hugging Face Token Secret
+### Create Hugging Face Token Secret (Gated Models Only)
 
-Before installing the chart, create a Kubernetes secret with your Hugging Face token:
+For gated models, create a Kubernetes secret with your Hugging Face token. Public models do not require it:
 
 ```bash
 kubectl create secret generic hf-token --from-literal=token=your_huggingface_token
@@ -192,10 +192,11 @@ The following table lists the configurable parameters of the inference-charts ch
 | `inference.modelServer.deployment.topologySpreadConstraints.constraints` | List of topology spread constraints                                                 | See default configuration                                                   |
 | `inference.modelServer.deployment.podAffinity.enabled`                   | Enable pod affinity                                                                 | `true`                                                                      |
 | `inference.modelServer.deployment.lifecycle`                             | Lifecycle hooks for the vLLM container (e.g. preStop)                               | `{}`                                                                        |
-| `inference.modelServer.deployment.livenessProbe`                         | Liveness probe for the vLLM container                                               | `{}`                                                                        |
-| `inference.modelServer.deployment.readinessProbe`                        | Readiness probe for the vLLM container                                              | `{}`                                                                        |
+| `inference.modelServer.deployment.livenessProbe`                         | Liveness probe for vLLM or llama.cpp (llama.cpp defaults to `/health`)              | `{}`                                                                        |
+| `inference.modelServer.deployment.readinessProbe`                        | Readiness probe for vLLM or llama.cpp (llama.cpp defaults to `/health`)             | `{}`                                                                        |
 | `inference.modelServer.deployment.terminationGracePeriodSeconds`         | Termination grace period for the vLLM pod                                           | Not set                                                                     |
-| `inference.modelServer.deployment.tolerations`                           | Pod tolerations (vLLM and NIM container)                                            | `[]`                                                                        |
+| `inference.modelServer.deployment.tolerations`                           | Pod tolerations (vLLM, llama.cpp, and NIM container)                                | `[]`                                                                        |
+| `llamaCpp.startupProbe`                                                  | llama.cpp startup health check; allows up to 30 minutes for model download         | `/health`, every 10s, 180 failures                                         |
 | `inference.rayOptions.rayVersion`                                        | Ray version to use                                                                  | `2.47.0`                                                                    |
 | `inference.rayOptions.autoscaling.enabled`                               | Enable Ray native autoscaling                                                       | `false`                                                                     |
 | `inference.rayOptions.autoscaling.upscalingMode`                         | Ray autoscaler upscaling mode                                                       | `Default`                                                                   |
@@ -234,9 +235,7 @@ The chart provides configuration for various model parameters:
 | `modelParameters.enablePrefixCaching`       | Enable prefix caching                 | `true`                      |
 | `modelParameters.pipeline`                  | Pipeline type for diffusers framework | Not set                     |
 
-**Note**: Model parameters are automatically converted to command line arguments in kebab-case format (e.g.,`maxNumSeqs`
-becomes `--max-num-seqs`). For diffusers deployments, the `pipeline` parameter specifies the diffusion pipeline type to
-use.
+**Note**: Model parameters, including YAML numbers, are converted to command-line arguments in kebab-case (e.g. `maxNumSeqs` becomes `--max-num-seqs`). Boolean `true` emits a flag, `false` omits it. For diffusers deployments, `pipeline` specifies the diffusion pipeline type. For llama.cpp, no vLLM-only tensor parallel flag is added automatically.
 
 ### Ray GCS High Availability Parameters
 

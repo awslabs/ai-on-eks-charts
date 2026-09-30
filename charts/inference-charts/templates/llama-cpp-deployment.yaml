@@ -24,11 +24,12 @@ spec:
           imagePullPolicy: {{ .Values.global.image.pullPolicy }}
           command: ["/bin/sh", "-c"]
           args:
-            - {{ .Values.llamaCpp.command }} -hf {{ .Values.model }} --port 8000 --host 0.0.0.0 {{ include "inference-charts.modelParameters" . }}
+            - {{ printf "%s -hf %s --port 8000 --host 0.0.0.0 %s" .Values.llamaCpp.command .Values.model (include "inference-charts.modelParameters" .) | trim | quote }}
           {{- if .Values.hfTokenSecret.envFrom }}
           envFrom:
             - secretRef:
                 name: {{ .Values.hfTokenSecret.name }}
+                optional: true
           {{- end }}
           env:
           {{- range $key, $value := .Values.inference.modelServer.env }}
@@ -36,20 +37,33 @@ spec:
               value: {{ $value | quote }}
           {{- end }}
             {{- if not .Values.hfTokenSecret.envFrom }}
-            - name: HUGGING_FACE_HUB_TOKEN
+            - name: HF_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.hfTokenSecret.name }}
                   key: {{ .Values.hfTokenSecret.key }}
+                  optional: true
             {{- end }}
           ports:
             - containerPort: 8000
               name: http
           resources:
             {{- include "inference-charts.acceleratorResources" . | nindent 12 }}
+          {{- with .Values.llamaCpp.startupProbe }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          readinessProbe:
+            {{- toYaml (.Values.inference.modelServer.deployment.readinessProbe | default (dict "httpGet" (dict "path" "/health" "port" 8000) "periodSeconds" 10)) | nindent 12 }}
+          livenessProbe:
+            {{- toYaml (.Values.inference.modelServer.deployment.livenessProbe | default (dict "httpGet" (dict "path" "/health" "port" 8000) "periodSeconds" 30)) | nindent 12 }}
           volumeMounts:
             - mountPath: /dev/shm
               name: dshm
+      {{- with .Values.inference.modelServer.deployment.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- if .Values.inference.modelServer.deployment.instanceType }}
       nodeSelector:
         node.kubernetes.io/instance-type: {{ .Values.inference.modelServer.deployment.instanceType }}
