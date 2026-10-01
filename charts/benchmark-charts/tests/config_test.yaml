@@ -1,0 +1,63 @@
+suite: benchmark configuration regressions
+templates:
+  - templates/benchmark-configmap.yaml
+tests:
+  - it: renders concurrent stages fixed distributions report and local storage without postprocessing
+    set:
+      benchmark.config:
+        api: {type: completion, streaming: true}
+        data:
+          type: synthetic
+          input_distribution: {type: fixed, mean: 512, std_dev: 0}
+          output_distribution: {type: fixed, mean: 128, std_dev: 0}
+        load:
+          type: concurrent
+          stages:
+            - {concurrency_level: 8, num_requests: 40}
+        report: {percentiles: [50, 95, 99]}
+        server: {type: vllm, base_url: 'http://inference:8000', model_name: example}
+        tokenizer: {pretrained_model_name_or_path: 'Qwen/Qwen3-8B'}
+        storage:
+          local_storage: {path: /tmp/reports}
+    asserts:
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: '(?m)^  type: concurrent$'
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: '(?m)^  - concurrency_level: 8$'
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: '(?m)^  input_distribution:\n    mean: 512\n    std_dev: 0\n    type: fixed$'
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: '(?m)^  output_distribution:\n    mean: 128\n    std_dev: 0\n    type: fixed$'
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: '(?m)^report:\n  percentiles:\n  - 50\n  - 95\n  - 99$'
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: '(?m)^  local_storage:\n    path: /tmp/reports$'
+      - notMatchRegex:
+          path: data["config.yml"]
+          pattern: simple_storage_service
+
+  - it: makes reports locally available without a writable S3 bucket
+    asserts:
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: '(?m)^  local_storage:\n    path: /tmp/reports$'
+      - notMatchRegex:
+          path: data["config.yml"]
+          pattern: simple_storage_service
+
+  - it: enables S3 only with a configured bucket while retaining local reports
+    set:
+      benchmark.storage.s3.bucketName: reports
+    asserts:
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: '(?m)^    bucket_name: "reports"$'
+      - matchRegex:
+          path: data["config.yml"]
+          pattern: '(?m)^  local_storage:\n    path: /tmp/reports$'

@@ -1,0 +1,82 @@
+suite: benchmark Job regressions
+templates:
+  - templates/benchmark-job.yaml
+tests:
+  - it: targets tainted benchmark nodes without requiring colocation with the server
+    set:
+      benchmark.nodeSelector: {kubernetes.io/arch: arm64}
+      benchmark.tolerations:
+        - {key: bench, operator: Exists, effect: NoSchedule}
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector
+          value: {kubernetes.io/arch: arm64}
+      - equal:
+          path: spec.template.spec.tolerations
+          value:
+            - {key: bench, operator: Exists, effect: NoSchedule}
+      - notExists:
+          path: spec.template.spec.affinity
+
+  - it: uses soft zone affinity with the inference chart component label when enabled
+    set:
+      benchmark.affinity.enabled: true
+      benchmark.affinity.targetLabels:
+        app.kubernetes.io/component: llama-model
+      benchmark.affinity.namespaces: [serving]
+    asserts:
+      - notExists:
+          path: spec.template.spec.affinity.podAffinity.requiredDuringSchedulingIgnoredDuringExecution
+      - equal:
+          path: spec.template.spec.affinity.podAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].podAffinityTerm.labelSelector.matchLabels
+          value:
+            app.kubernetes.io/component: llama-model
+      - equal:
+          path: spec.template.spec.affinity.podAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].podAffinityTerm.namespaces
+          value: [serving]
+
+  - it: reuses an existing IRSA account
+    set:
+      benchmark.serviceAccount.create: false
+      benchmark.serviceAccount.name: inference-perf-sa
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: inference-perf-sa
+
+  - it: uses a release-specific account rather than colliding with inference-perf-sa
+    asserts:
+      - notEqual:
+          path: spec.template.spec.serviceAccountName
+          value: inference-perf-sa
+      - matchRegex:
+          path: spec.template.spec.serviceAccountName
+          pattern: '-sa$'
+
+  - it: uses inference-perf with concurrent benchmarking support
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: ':v0\.(?:[6-9]|[1-9][0-9]+)\.[0-9]+$'
+
+  - it: publishes local JSON reports after inference-perf and preserves its exit status
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[1]
+          value: {name: REPORT_PATH, value: /tmp/reports}
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: '(?s)inference-perf --config_file /workspace/config.yml\nstatus=\$\?.*cat "\$report".*exit "\$status"'
+
+  - it: publishes custom local report paths from the supplied config
+    set:
+      benchmark.config:
+        storage:
+          local_storage: {path: /tmp/custom-reports}
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: REPORT_PATH, value: /tmp/custom-reports}
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: 'cat "\$report"'

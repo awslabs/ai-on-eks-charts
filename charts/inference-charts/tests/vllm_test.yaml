@@ -1,0 +1,55 @@
+suite: vLLM deployment regressions
+templates:
+  - templates/vllm-deployment.yaml
+set:
+  inference.framework: vllm
+tests:
+  - it: passes numeric and boolean model parameters as valid CLI arguments
+    set:
+      modelParameters:
+        maxModelLen: 4096
+        gpuMemoryUtilization: 0.7
+        enablePrefixCaching: true
+        disableLogStats: false
+    documentSelector: {path: kind, value: Deployment}
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: '--max-model-len 4096'
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: '--gpu-memory-utilization 0\.7'
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: '--enable-prefix-caching'
+      - notMatchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: '%!|--disable-log-stats'
+
+  - it: allows a larger Graviton CPU request without an inherited CPU limit
+    set:
+      inference.accelerator: graviton
+      inference.modelServer.deployment.resources.graviton.requests.cpu: 15
+    documentSelector: {path: kind, value: Deployment}
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: 15
+      - notExists:
+          path: spec.template.spec.containers[0].resources.limits.cpu
+
+  - it: starts an ungated model without a token secret
+    documentSelector: {path: kind, value: Deployment}
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[0].valueFrom.secretKeyRef.optional
+          value: true
+
+  - it: starts an ungated model without the envFrom token secret
+    set:
+      hfTokenSecret.envFrom: true
+    documentSelector: {path: kind, value: Deployment}
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].envFrom[0].secretRef.optional
+          value: true
