@@ -74,7 +74,7 @@ app.kubernetes.io/component: {{.Values.inference.serviceName}}
       {{- $args = append $args (printf "--%s" ($key | kebabcase)) -}}
     {{- end -}}
   {{- else -}}
-    {{- $args = append $args (printf "--%s %s" ($key | kebabcase) $value) -}}
+    {{- $args = append $args (printf "--%s %v" ($key | kebabcase) $value) -}}
   {{- end -}}
 {{- end -}}
 {{- if eq .Values.inference.framework "aibrix" }}
@@ -85,7 +85,7 @@ app.kubernetes.io/component: {{.Values.inference.serviceName}}
 {{- if .Values.vllm.loadFormat }}
     {{- $args = append $args (printf "--load-format %s" .Values.vllm.loadFormat ) }}
 {{- end}}
-{{- if and (not (.Values.modelParameters | default dict).tensorParallelSize) (ne .Values.inference.accelerator "graviton")}}
+{{- if and (ne .Values.inference.framework "llama-cpp") (not (.Values.modelParameters | default dict).tensorParallelSize) (ne .Values.inference.accelerator "graviton")}}
     {{- if eq .Values.inference.accelerator "neuron"}}
         {{- $tpsize = mul (index .Values.inference.modelServer.deployment.resources.neuron.requests "aws.amazon.com/neuron") 2}}
     {{- else }}
