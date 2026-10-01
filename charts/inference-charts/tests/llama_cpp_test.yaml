@@ -1,0 +1,110 @@
+suite: llama.cpp deployment regressions
+templates:
+  - templates/llama-cpp-deployment.yaml
+set:
+  inference.framework: llama-cpp
+  inference.accelerator: gpu
+tests:
+  - it: renders numeric parameters as usable llama-server arguments without vLLM flags
+    set:
+      modelParameters.ctxSize: 4096
+      llamaCpp.command: llama-server --verbose
+    documentSelector:
+      path: kind
+      value: Deployment
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: '^llama-server --verbose -hf .+ --port 8000 --host 0\.0\.0\.0 --ctx-size 4096$'
+      - notMatchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: '%!|--tensor-parallel-size'
+
+  - it: tolerates tainted nodes for llama.cpp
+    set:
+      inference.modelServer.deployment.tolerations:
+        - key: workload
+          operator: Equal
+          value: bench
+          effect: NoSchedule
+    documentSelector:
+      path: kind
+      value: Deployment
+    asserts:
+      - equal:
+          path: spec.template.spec.tolerations
+          value:
+            - key: workload
+              operator: Equal
+              value: bench
+              effect: NoSchedule
+
+  - it: allows a larger Graviton CPU request without inheriting a smaller limit
+    set:
+      inference.accelerator: graviton
+      inference.modelServer.deployment.resources.graviton.requests.cpu: 15
+    documentSelector:
+      path: kind
+      value: Deployment
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: 15
+      - notExists:
+          path: spec.template.spec.containers[0].resources.limits.cpu
+
+  - it: keeps the Service unready until the GGUF download and server health succeed
+    documentSelector:
+      path: kind
+      value: Deployment
+    asserts:
+      - greaterOrEqual:
+          path: spec.template.spec.containers[0].startupProbe.failureThreshold
+          value: 60
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.httpGet
+          value: {path: /health, port: 8000}
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet
+          value: {path: /health, port: 8000}
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet
+          value: {path: /health, port: 8000}
+
+  - it: starts public models without an hf-token secret
+    documentSelector:
+      path: kind
+      value: Deployment
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[0].valueFrom.secretKeyRef.optional
+          value: true
+
+  - it: does not require the token secret when envFrom is enabled
+    set:
+      hfTokenSecret.envFrom: true
+    documentSelector:
+      path: kind
+      value: Deployment
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].envFrom[0].secretRef.optional
+          value: true
+
+  - it: passes a gated model token to llama-server as HF_TOKEN
+    set:
+      hfTokenSecret.name: gated-token
+      hfTokenSecret.key: access
+    documentSelector:
+      path: kind
+      value: Deployment
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[0]
+          value:
+            name: HF_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: gated-token
+                key: access
+                optional: true
