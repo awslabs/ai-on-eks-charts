@@ -1,6 +1,27 @@
 apiVersion: v1
 entries:
+  benchmark-charts:
+  - apiVersion: v2
+    appVersion: 0.6.1
+    created: "2026-10-09T16:57:58.365912968Z"
+    description: A Helm chart for running LLM inference performance benchmarks
+    digest: 679853bf00e0e6097075e09ed8bffb86bd81aa758d3b5876be40a8cce6ebd699
+    name: benchmark-charts
+    type: application
+    urls:
+    - https://github.com/awslabs/ai-on-eks-charts/releases/download/benchmark-charts-0.2.8/benchmark-charts-0.2.8.tgz
+    version: 0.2.8
   inference-charts:
+  - apiVersion: v2
+    appVersion: 1.0.0
+    created: "2026-10-09T16:57:58.645278561Z"
+    description: A Helm chart for AI on EKS
+    digest: 43454dac48a34789944d64b42b7e721046ce56ecec6590efa24384e156c8d8b4
+    name: inference-charts
+    type: application
+    urls:
+    - https://github.com/awslabs/ai-on-eks-charts/releases/download/inference-charts-0.2.8/inference-charts-0.2.8.tgz
+    version: 0.2.8
   - apiVersion: v2
     appVersion: 1.0.0
     created: "2026-09-15T17:58:17.94690797Z"
@@ -91,4 +112,4 @@ entries:
     urls:
     - https://github.com/awslabs/ai-on-eks-charts/releases/download/inference-charts-0.1.0/inference-charts-0.1.0.tgz
     version: 0.1.0
-generated: "2026-09-15T17:58:17.946950864Z"
+generated: "2026-10-09T16:57:58.645323294Z"
