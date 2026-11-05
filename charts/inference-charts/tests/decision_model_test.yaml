@@ -1,0 +1,192 @@
+suite: decision-model deployment regressions
+templates:
+  - templates/decision-model-deployment.yaml
+set:
+  inference.framework: kev
+  inference.accelerator: gpu
+  model: org/model
+tests:
+  - it: renders nothing for other frameworks
+    set:
+      inference.framework: vllm
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: rejects non-GPU accelerators
+    set:
+      inference.accelerator: neuron
+    asserts:
+      - failedTemplate:
+          errorMessage: "inference.framework kev requires inference.accelerator: gpu"
+
+  - it: installs pinned packages, downloads the pinned revision, and execs the Kev server
+    set:
+      decisionModel.revision: abc123
+      decisionModel.containerPort: 8008
+      decisionModel.pipInstalls:
+        - indexUrl: https://download.pytorch.org/whl/cu128
+          packages: [torch==2.8.0]
+        - packages: ["kev[serve] @ https://example.com/kev.tar.gz"]
+    documentSelector: {path: kind, value: Deployment}
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: "python3 -m pip install --no-cache-dir --index-url 'https://download.pytorch.org/whl/cu128' 'torch==2.8.0'\n"
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: "python3 -m pip install --no-cache-dir 'kev\\[serve\\] @ https://example.com/kev.tar.gz'\n"
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: 'snapshot_download\(repo_id="org/model", revision="abc123", local_dir="/models/checkpoint"\)'
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: 'exec python3 -m kev\.serve --run /models/checkpoint --host 0\.0\.0\.0 --port 8008\n?$'
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 8008
+
+  - it: renders strands-decider modelParameters as server flags without vLLM flags
+    set:
+      inference.framework: strands-decider
+      modelParameters:
+        device: cuda
+        maxBatch: 16
+        modelName: served-name
+    documentSelector: {path: kind, value: Deployment}
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: 'exec strands-decider serve /models/checkpoint --host 0\.0\.0\.0 --port 8000 --device cuda --max-batch 16 --model-name served-name\n?$'
+      - notMatchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: '%!|--tensor-parallel-size'
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: strands-decider
+
+  - it: omits the revision when none is pinned
+    documentSelector: {path: kind, value: Deployment}
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: 'snapshot_download\(repo_id="org/model", local_dir="/models/checkpoint"\)'
+
+  - it: preserves required node affinity alongside the chart's pod affinity
+    set:
+      inference.modelServer.deployment.nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - {key: karpenter.k8s.aws/instance-family, operator: In, values: [g7e]}
+            - matchExpressions:
+                - {key: eks.amazonaws.com/instance-family, operator: In, values: [g7e]}
+    documentSelector: {path: kind, value: Deployment}
+    asserts:
+      - equal:
+          path: spec.template.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms
+          value:
+            - matchExpressions:
+                - {key: karpenter.k8s.aws/instance-family, operator: In, values: [g7e]}
+            - matchExpressions:
+                - {key: eks.amazonaws.com/instance-family, operator: In, values: [g7e]}
+      - exists:
+          path: spec.template.spec.affinity.podAffinity
+
+  - it: renders no affinity when node and pod affinity are both unset
+    set:
+      inference.modelServer.deployment.podAffinity.enabled: false
+    documentSelector: {path: kind, value: Deployment}
+    asserts:
+      - notExists:
+          path: spec.template.spec.affinity
+
+  - it: hardens the pod and keeps the service account token unmounted
+    documentSelector: {path: kind, value: Deployment}
+    asserts:
+      - equal:
+          path: spec.template.spec.automountServiceAccountToken
+          value: false
+      - equal:
+          path: spec.template.spec.securityContext.seccompProfile.type
+          value: RuntimeDefault
+      - equal:
+          path: spec.template.spec.containers[0].securityContext
+          value:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+
+  - it: defaults to TCP probes and a 30 minute startup window
+    documentSelector: {path: kind, value: Deployment}
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe
+          value: {tcpSocket: {port: http}, periodSeconds: 10, timeoutSeconds: 5, failureThreshold: 180}
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.tcpSocket.port
+          value: http
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.tcpSocket.port
+          value: http
+
+  - it: mounts no host driver libraries unless enabled
+    documentSelector: {path: kind, value: Deployment}
+    asserts:
+      - notMatchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: LD_LIBRARY_PATH
+      - notContains:
+          path: spec.template.spec.volumes
+          content:
+            name: nvidia-libcuda
+          any: true
+
+  - it: mounts only libcuda and NVML read-only and puts them on LD_LIBRARY_PATH
+    set:
+      decisionModel.hostDriverLibs.enabled: true
+      decisionModel.hostDriverLibs.mountDir: /usr/local/cuda/compat
+    documentSelector: {path: kind, value: Deployment}
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].args[0]
+          pattern: 'export LD_LIBRARY_PATH="/usr/local/cuda/compat\$\{LD_LIBRARY_PATH:\+:\$\{LD_LIBRARY_PATH\}\}"'
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content: {name: nvidia-libcuda, mountPath: /usr/local/cuda/compat/libcuda.so.1, readOnly: true}
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: nvidia-libnvidia-ml
+            hostPath:
+              path: /x86_64-bottlerocket-linux-gnu/sys-root/usr/lib/libnvidia-ml.so.1
+              type: File
+
+  - it: requires the Kev API key secret in the Kev values file
+    values:
+      - ../values-kev-27b.yaml
+    documentSelector: {path: kind, value: Deployment}
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: KEV_API_KEY
+            valueFrom:
+              secretKeyRef: {name: kev-api-key, key: api-key}
+      - equal:
+          path: spec.strategy.type
+          value: Recreate
+      - equal:
+          path: spec.template.spec.runtimeClassName
+          value: nvidia
+
+  - it: exposes the server only inside the cluster on the chart's service port
+    values:
+      - ../values-strands-decider-2b.yaml
+    documentSelector: {path: kind, value: Service}
+    asserts:
+      - equal:
+          path: spec.type
+          value: ClusterIP
+      - equal:
+          path: spec.ports[0]
+          value: {port: 8000, targetPort: http, protocol: TCP, name: http}

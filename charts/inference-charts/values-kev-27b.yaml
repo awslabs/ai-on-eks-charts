@@ -1,0 +1,107 @@
+# Kev 27B decision model (https://huggingface.co/jaredpalmer/kev-27b) served by the Kev server
+# on one NVIDIA GPU in the g7e instance family, with Bottlerocket nodes.
+#
+# Kev requires Python 3.12 and torch < 2.9, so the pod starts from a pinned python:3.12-slim image
+# and installs CUDA 12.8 torch and the released Kev server at startup.
+#
+# Prerequisite: Kev requires an API key on every request. Create the secret in the release namespace:
+#   kubectl create secret generic kev-api-key --from-literal=api-key=<key>
+# The pod will not start until this secret exists.
+model: jaredpalmer/kev-27b
+
+extraLabels:
+  app.kubernetes.io/name: kev-27b
+  app.kubernetes.io/part-of: decision-models
+  app.kubernetes.io/version: "kev-1.0"
+
+decisionModel:
+  revision: af0e6d551bdc2cc724f3e9d7a8bee1cd4fb8f7bf
+  containerPort: 8008
+  modelCacheSize: 350Gi
+  pipInstalls:
+    - indexUrl: https://download.pytorch.org/whl/cu128
+      packages:
+        - torch==2.8.0
+    - packages:
+        - "kev[serve] @ https://github.com/jaredpalmer/kev/archive/6b719c3c3f367295f6ef336f4f751cf5ff970abc.tar.gz"
+        - transformers==5.19.0
+        - huggingface-hub==1.31.0
+  extraEnv:
+    - name: KEV_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: kev-api-key
+          key: api-key
+  hostDriverLibs:
+    enabled: true
+    mountDir: /usr/local/lib
+  # Probes use the chart's TCP defaults on the http port; Kev has no /health endpoint.
+
+inference:
+  serviceName: kev-27b
+  serviceNamespace: default
+  accelerator: gpu
+  framework: kev
+
+  modelServer:
+    image:
+      repository: python
+      tag: 3.12-slim-bookworm@sha256:57d96f71de145a98e7ceca18ee4ade77bba4103a33a72dfaea026b23625c6bf0
+    deployment:
+      replicas: 1
+      runtimeClassName: nvidia
+      strategy:
+        type: Recreate
+      progressDeadlineSeconds: 1800
+      revisionHistoryLimit: 2
+      terminationGracePeriodSeconds: 120
+      sharedMemory: 16Gi
+      podAnnotations:
+        # CloudWatch Application Signals auto-instrumentation can override model
+        # dependencies, so retain infrastructure metrics but disable its language
+        # runtimes for this pod.
+        cloudwatch.aws.amazon.com/auto-annotate-dotnet: "false"
+        cloudwatch.aws.amazon.com/auto-annotate-java: "false"
+        cloudwatch.aws.amazon.com/auto-annotate-nodejs: "false"
+        cloudwatch.aws.amazon.com/auto-annotate-python: "false"
+        instrumentation.opentelemetry.io/inject-dotnet: "false"
+        instrumentation.opentelemetry.io/inject-java: "false"
+        instrumentation.opentelemetry.io/inject-nodejs: "false"
+        instrumentation.opentelemetry.io/inject-python: "false"
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8008"
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: karpenter.k8s.aws/instance-family
+                  operator: In
+                  values:
+                    - g7e
+            - matchExpressions:
+                - key: eks.amazonaws.com/instance-family
+                  operator: In
+                  values:
+                    - g7e
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      resources:
+        gpu:
+          requests:
+            cpu: "6"
+            memory: 48Gi
+            ephemeral-storage: 120Gi
+            nvidia.com/gpu: 1
+          limits:
+            memory: 60Gi
+            ephemeral-storage: 400Gi
+            nvidia.com/gpu: 1
+    env:
+      KEV_BACKEND: torch
+      KEV_DTYPE: bf16
+      KEV_CUDA_GRAPHS: "1"
+      KEV_PREFIX_CACHE: "1"
+      KEV_PREFIX_MAX_TOKENS: "65536"

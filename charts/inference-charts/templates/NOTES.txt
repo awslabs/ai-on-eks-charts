@@ -26,6 +26,21 @@ The following service is available:
   http://{{ .Values.inference.serviceName }}:{{ .Values.service.port }}/v1/chat/completions
 {{- end }}
 
+{{- if has .Values.inference.framework (list "kev" "strands-decider") }}
+{{ .Values.inference.framework | title }} decision-model Service:
+  $ kubectl get svc {{ .Values.inference.serviceName }} -n {{ .Values.inference.serviceNamespace }}
+
+  The server installs its packages and downloads the model at startup, which can take up to 30 minutes:
+  $ kubectl logs -f deployment/{{ .Values.inference.serviceName }} -n {{ .Values.inference.serviceNamespace }}
+
+  In-cluster endpoint:
+  http://{{ .Values.inference.serviceName }}.{{ .Values.inference.serviceNamespace }}:{{ .Values.service.port }}
+{{- if eq .Values.inference.framework "kev" }}
+
+  Kev rejects requests without the API key from the kev-api-key secret.
+{{- end }}
+{{- end }}
+
 {{- if eq .Values.inference.framework "ray-vllm" }}
 {{ .Values.inference.accelerator | title }} Ray-VLLM Service:
   $ kubectl get svc {{ .Release.Name }}
@@ -110,6 +125,8 @@ curl -X POST http://localhost:8000/v1/chat/completions \
   }'
 
 
+{{- else if has .Values.inference.framework (list "kev" "strands-decider") }}
+{{- /* Decision-model servers are not OpenAI-compatible; their notes are printed above. */}}
 {{- else }}
 Example curl command to test the API:
 
@@ -138,7 +155,7 @@ Available API endpoints:
 No inference service was enabled. Please set both accelerator and framework values:
 
 - inference.accelerator: gpu, neuron, or graviton
-- inference.framework: vllm, ray-vllm, triton-vllm, diffusers, lws-vllm, aibrix, llama-cpp, nim-container, or nim-operator
+- inference.framework: vllm, ray-vllm, triton-vllm, diffusers, lws-vllm, aibrix, llama-cpp, kev, strands-decider, nim-container, or nim-operator
 
 For example:
   $ helm upgrade {{ .Release.Name }} . --set inference.accelerator=gpu --set inference.framework=vllm

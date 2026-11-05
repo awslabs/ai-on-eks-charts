@@ -1,0 +1,205 @@
+{{- if has .Values.inference.framework (list "kev" "strands-decider") }}
+{{- if ne .Values.inference.accelerator "gpu" }}
+{{- fail (printf "inference.framework %s requires inference.accelerator: gpu" .Values.inference.framework) }}
+{{- end }}
+{{- $deployment := .Values.inference.modelServer.deployment }}
+{{- $dm := .Values.decisionModel }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.inference.serviceName }}
+  namespace: {{ .Values.inference.serviceNamespace }}
+  labels:
+    "app.kubernetes.io/component": "{{ .Values.inference.serviceName }}"
+    {{- include "inference-charts.extraLabels" . | nindent 4 }}
+spec:
+  replicas: {{ $deployment.replicas }}
+  {{- with $deployment.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $deployment.progressDeadlineSeconds }}
+  progressDeadlineSeconds: {{ . }}
+  {{- end }}
+  {{- if not (kindIs "invalid" $deployment.revisionHistoryLimit) }}
+  revisionHistoryLimit: {{ $deployment.revisionHistoryLimit }}
+  {{- end }}
+  selector:
+    matchLabels:
+      "app.kubernetes.io/component": "{{ .Values.inference.serviceName }}"
+  template:
+    metadata:
+      labels:
+        "app.kubernetes.io/component": "{{ .Values.inference.serviceName }}"
+        {{- include "inference-charts.extraLabels" . | nindent 8 }}
+      {{- with $deployment.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with $deployment.runtimeClassName }}
+      runtimeClassName: {{ . }}
+      {{- end }}
+      serviceAccountName: {{ .Values.serviceAccountName }}
+      # The model server never calls the Kubernetes API, so it gets no API token.
+      automountServiceAccountToken: false
+      {{- with $deployment.terminationGracePeriodSeconds }}
+      terminationGracePeriodSeconds: {{ . }}
+      {{- end }}
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: {{ .Values.inference.framework }}
+          image: "{{ .Values.inference.modelServer.image.repository }}:{{ .Values.inference.modelServer.image.tag }}"
+          imagePullPolicy: {{ .Values.global.image.pullPolicy }}
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              {{- include "inference-charts.decisionModelStartScript" . | nindent 14 }}
+          {{- if .Values.hfTokenSecret.envFrom }}
+          envFrom:
+            - secretRef:
+                name: {{ .Values.hfTokenSecret.name }}
+                optional: true
+          {{- end }}
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: PIP_DISABLE_PIP_VERSION_CHECK
+              value: "1"
+            - name: PIP_ROOT_USER_ACTION
+              value: ignore
+            - name: HF_HOME
+              value: /models/cache
+          {{- range $key, $value := .Values.inference.modelServer.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+          {{- end }}
+          {{- with $dm.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+            {{- if not .Values.hfTokenSecret.envFrom }}
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.hfTokenSecret.name }}
+                  key: {{ .Values.hfTokenSecret.key }}
+                  optional: true
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ $dm.containerPort }}
+              protocol: TCP
+          resources:
+            {{- include "inference-charts.acceleratorResources" . | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          # Defaults are TCP checks because not every decision-model server exposes /health.
+          # The startup probe allows 30 minutes for package installs and the model download.
+          startupProbe:
+            {{- toYaml ($dm.startupProbe | default (dict "tcpSocket" (dict "port" "http") "periodSeconds" 10 "timeoutSeconds" 5 "failureThreshold" 180)) | nindent 12 }}
+          readinessProbe:
+            {{- toYaml ($deployment.readinessProbe | default (dict "tcpSocket" (dict "port" "http") "periodSeconds" 10 "timeoutSeconds" 5 "failureThreshold" 3)) | nindent 12 }}
+          livenessProbe:
+            {{- toYaml ($deployment.livenessProbe | default (dict "tcpSocket" (dict "port" "http") "periodSeconds" 30 "timeoutSeconds" 5 "failureThreshold" 3)) | nindent 12 }}
+          {{- with $deployment.lifecycle }}
+          lifecycle:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: model-cache
+              mountPath: /models
+            - name: dshm
+              mountPath: /dev/shm
+            {{- if $dm.hostDriverLibs.enabled }}
+            - name: nvidia-libcuda
+              mountPath: {{ $dm.hostDriverLibs.mountDir }}/libcuda.so.1
+              readOnly: true
+            - name: nvidia-libnvidia-ml
+              mountPath: {{ $dm.hostDriverLibs.mountDir }}/libnvidia-ml.so.1
+              readOnly: true
+            {{- end }}
+      {{- with $deployment.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if $deployment.instanceType }}
+      nodeSelector:
+        node.kubernetes.io/instance-type: {{ $deployment.instanceType }}
+      {{- end }}
+      {{- if and $deployment.topologySpreadConstraints.enabled $deployment.topologySpreadConstraints.constraints }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              "app.kubernetes.io/component": "{{ .Values.inference.serviceName }}"
+      {{- end }}
+      {{- $podAffinityEnabled := and $deployment.podAffinity.enabled $deployment.podAffinity.preferredDuringSchedulingIgnoredDuringExecution }}
+      {{- if or $deployment.nodeAffinity $podAffinityEnabled }}
+      affinity:
+        {{- with $deployment.nodeAffinity }}
+        nodeAffinity:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- if $podAffinityEnabled }}
+        podAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            {{- range $deployment.podAffinity.preferredDuringSchedulingIgnoredDuringExecution }}
+            - weight: {{ .weight }}
+              podAffinityTerm:
+                topologyKey: {{ .podAffinityTerm.topologyKey }}
+                labelSelector:
+                  matchLabels:
+                    "app.kubernetes.io/component": "{{ $.Values.inference.serviceName }}"
+            {{- end }}
+        {{- end }}
+      {{- end }}
+      volumes:
+        - name: model-cache
+          emptyDir:
+            sizeLimit: {{ $dm.modelCacheSize }}
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            {{- with $deployment.sharedMemory }}
+            sizeLimit: {{ . }}
+            {{- end }}
+        {{- if $dm.hostDriverLibs.enabled }}
+        # Mount only libcuda and NVML, read-only, so the host glibc is not exposed.
+        - name: nvidia-libcuda
+          hostPath:
+            path: {{ $dm.hostDriverLibs.hostDir }}/libcuda.so.1
+            type: File
+        - name: nvidia-libnvidia-ml
+          hostPath:
+            path: {{ $dm.hostDriverLibs.hostDir }}/libnvidia-ml.so.1
+            type: File
+        {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.inference.serviceName }}
+  namespace: {{ .Values.inference.serviceNamespace }}
+  labels:
+    {{- include "inference-charts.extraLabels" . | nindent 4 }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    "app.kubernetes.io/component": "{{ .Values.inference.serviceName }}"
+{{- end }}

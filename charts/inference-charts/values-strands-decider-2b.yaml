@@ -1,0 +1,117 @@
+# Strands Decider 2B (https://huggingface.co/StrandsAgents/strands-decider-2B-qwen3.5-v1-2610)
+# served by the strands-decider server on one NVIDIA GPU in the g5 instance family, with Bottlerocket nodes.
+#
+# The pod starts from the CUDA/PyTorch image the upstream server is built against and installs the
+# released strands-decider server at startup.
+model: StrandsAgents/strands-decider-2B-qwen3.5-v1-2610
+
+# Rendered as `strands-decider serve` flags (camelCase -> --kebab-case).
+modelParameters:
+  device: cuda
+  maxBatch: 16
+  modelName: strands-decider-2B-qwen3.5-v1-2610
+
+extraLabels:
+  app.kubernetes.io/name: strands-decider-2b
+  app.kubernetes.io/part-of: decision-models
+  app.kubernetes.io/version: "strands-decider-0.2.0"
+
+decisionModel:
+  revision: 216d1ccb46a9e9b036eb9187b248db98480f77d4
+  containerPort: 8000
+  modelCacheSize: 100Gi
+  pipInstalls:
+    - packages:
+        - strands-decider==0.2.0
+        - transformers==5.19.0
+        - huggingface-hub==1.31.0
+  hostDriverLibs:
+    enabled: true
+    mountDir: /usr/local/cuda-12.6/compat
+  startupProbe:
+    httpGet:
+      path: /health
+      port: http
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 180
+
+inference:
+  serviceName: strands-decider-2b
+  serviceNamespace: default
+  accelerator: gpu
+  framework: strands-decider
+
+  modelServer:
+    image:
+      repository: pytorch/pytorch
+      tag: 2.7.1-cuda12.6-cudnn9-runtime@sha256:2b59b1b91885677814f78be1f8df48a25d5dc952eb6580eaecfefca510f9afd3
+    deployment:
+      replicas: 1
+      runtimeClassName: nvidia
+      strategy:
+        type: Recreate
+      progressDeadlineSeconds: 1800
+      revisionHistoryLimit: 2
+      terminationGracePeriodSeconds: 120
+      sharedMemory: 4Gi
+      podAnnotations:
+        # CloudWatch Application Signals auto-instrumentation overrides model
+        # dependencies, so retain infrastructure metrics but disable its language
+        # runtimes for this pod.
+        cloudwatch.aws.amazon.com/auto-annotate-dotnet: "false"
+        cloudwatch.aws.amazon.com/auto-annotate-java: "false"
+        cloudwatch.aws.amazon.com/auto-annotate-nodejs: "false"
+        cloudwatch.aws.amazon.com/auto-annotate-python: "false"
+        instrumentation.opentelemetry.io/inject-dotnet: "false"
+        instrumentation.opentelemetry.io/inject-java: "false"
+        instrumentation.opentelemetry.io/inject-nodejs: "false"
+        instrumentation.opentelemetry.io/inject-python: "false"
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8000"
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: karpenter.k8s.aws/instance-family
+                  operator: In
+                  values:
+                    - g5
+            - matchExpressions:
+                - key: eks.amazonaws.com/instance-family
+                  operator: In
+                  values:
+                    - g5
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+      readinessProbe:
+        httpGet:
+          path: /health
+          port: http
+        periodSeconds: 10
+        timeoutSeconds: 5
+        failureThreshold: 3
+      livenessProbe:
+        httpGet:
+          path: /health
+          port: http
+        periodSeconds: 30
+        timeoutSeconds: 5
+        failureThreshold: 3
+      resources:
+        gpu:
+          requests:
+            cpu: "2"
+            memory: 8Gi
+            ephemeral-storage: 20Gi
+            nvidia.com/gpu: 1
+          limits:
+            memory: 14Gi
+            ephemeral-storage: 100Gi
+            nvidia.com/gpu: 1
+    env:
+      # hostDriverLibs prepends /usr/local/cuda-12.6/compat at startup.
+      LD_LIBRARY_PATH: /opt/conda/lib/python3.11/site-packages/torch/lib:/usr/local/cuda/lib64
