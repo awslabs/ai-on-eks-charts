@@ -58,6 +58,33 @@ llamaCpp:
     periodSeconds: 10
     failureThreshold: 180
 
+# Decision-model servers (framework: kev or strands-decider) settings.
+# These servers ship as Python packages rather than images: the pod starts from a CUDA/Python
+# base image, pip-installs the pinned server packages, downloads the model snapshot from
+# Hugging Face into /models/checkpoint, checks CUDA, then execs the server. GPU only.
+decisionModel:
+  # Hugging Face commit to download. Pin it so restarts serve identical weights; empty = default branch.
+  revision:
+  # Port the server listens on inside the pod. The Service still exposes service.port.
+  containerPort: 8000
+  # pip install invocations, run in order at startup.
+  # Each entry: {packages: [<requirement specifier>, ...], indexUrl: <optional --index-url>}
+  pipInstalls: []
+  # Size limit of the /models emptyDir that holds the Hugging Face cache and the checkpoint.
+  modelCacheSize: 100Gi
+  # Extra container env vars in Kubernetes EnvVar form; use this for values from Secrets,
+  # e.g. [{name: KEV_API_KEY, valueFrom: {secretKeyRef: {name: kev-api-key, key: api-key}}}]
+  extraEnv: []
+  # Bottlerocket keeps the NVIDIA driver libraries outside the container root filesystem.
+  # When enabled, only libcuda.so.1 and libnvidia-ml.so.1 are mounted read-only from hostDir
+  # into mountDir, and mountDir is prepended to LD_LIBRARY_PATH.
+  hostDriverLibs:
+    enabled: false
+    hostDir: /x86_64-bottlerocket-linux-gnu/sys-root/usr/lib
+    mountDir: /usr/local/lib
+  # Empty = TCP check on the http port every 10s for up to 30 minutes (installs + download).
+  startupProbe: {}
+
 # Extra labels applied to all resources (pods, deployments, services, etc.)
 extraLabels: {}
 
@@ -81,7 +108,7 @@ inference:
   # graviton runs on ARM64 CPU instances (no GPU/Neuron device plugin), e.g. llama.cpp or CPU vLLM builds.
   accelerator: gpu
 
-  # Framework type: vllm, ray-vllm, triton-vllm, aibrix, lws-vllm, or llama-cpp
+  # Framework type: vllm, ray-vllm, triton-vllm, aibrix, lws-vllm, llama-cpp, kev, or strands-decider
   framework:
 
   #Ray Specific Options
@@ -220,9 +247,16 @@ inference:
           path: /health
           port: 8000
       # Optional; rendered when set (vllm deployment; tolerations also apply to nim-container).
+      # The kev / strands-decider deployment renders all of these, including the "decision-model only" keys.
       lifecycle: {} # e.g. {preStop: {exec: {command: ["/bin/sh", "-c", "sleep 15"]}}}
       livenessProbe: {} # e.g. {httpGet: {path: /health, port: 8000}, periodSeconds: 20}
+      nodeAffinity: {} # decision-model only; e.g. {requiredDuringSchedulingIgnoredDuringExecution: {nodeSelectorTerms: [...]}}
+      podAnnotations: {} # decision-model only; e.g. {prometheus.io/scrape: "true"}
+      progressDeadlineSeconds: # decision-model only; e.g. 1800 when startup installs packages and downloads weights
       readinessProbe: {} # e.g. {httpGet: {path: /health, port: 8000}, periodSeconds: 10}
+      revisionHistoryLimit: # decision-model only; e.g. 2
+      runtimeClassName: # decision-model only; e.g. nvidia
+      strategy: {} # decision-model only; e.g. {type: Recreate} to free a single-GPU node before the new pod starts
       terminationGracePeriodSeconds: # e.g. 300, so in-flight generations finish before SIGKILL
       tolerations: [] # e.g. [{key: "nvidia.com/gpu", operator: "Exists", effect: "NoSchedule"}]
     env: {}

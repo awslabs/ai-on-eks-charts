@@ -14,6 +14,7 @@ Every supported model in this repo is one values file: `charts/inference-charts/
 - Model name: lowercase, dots dropped or kept per existing precedent (`llama-32-1b`, `qwen3-1.7b`, `glm-5-2`), parameter count included when the family has multiple sizes (`llama-3-70b`).
 - Framework suffix: `vllm`, `ray-vllm`, `lws-vllm`, `triton-vllm`, `aibrix`, `diffusers`, `nim-container`, `nim-operator-cache`, `nim-operator-service`. Neuron variants append `-neuron` (`values-llama-31-8b-vllm-neuron.yaml`).
 - S3 staging companions are prefixed `values-s3-copy-` (`values-s3-copy-glm-5-2.yaml`).
+- Decision models drop the suffix when the framework is the model family (`values-kev-27b.yaml`, `values-strands-decider-2b.yaml`).
 
 ## Choose a Framework
 
@@ -25,6 +26,7 @@ Every supported model in this repo is one values file: `charts/inference-charts/
 | Triton front-end required                                     | `triton-vllm`                            | `triton-vllm-deployment.yaml`                       |
 | AIBrix runtime                                                | `aibrix`                                 | `vllm-deployment.yaml` (adds `--served-model-name`) |
 | Image generation                                              | `diffusers`                              | `diffusers-deployment.yaml`                         |
+| Decision model with its own Python server (Kev, Strands)      | `kev` / `strands-decider`                | `decision-model-deployment.yaml`                    |
 | NVIDIA NIM                                                    | `nim-container` / NIM operator values    | `nim-*.yaml`                                        |
 | Trainium/Inferentia                                           | any vllm variant + `accelerator: neuron` | same, neuron resources                              |
 
