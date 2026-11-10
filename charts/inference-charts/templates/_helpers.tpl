@@ -104,7 +104,15 @@ Falls back to the gpu block for unknown accelerators.
 {{- define "inference-charts.acceleratorResources" -}}
 {{- $resources := .Values.inference.modelServer.deployment.resources -}}
 {{- if eq .Values.inference.accelerator "neuron" -}}
-{{- toYaml $resources.neuron -}}
+{{- $neuron := deepCopy $resources.neuron -}}
+{{- $dra := $neuron.dra | default dict -}}
+{{- $_ := unset $neuron "dra" -}}
+{{- if $dra.enabled -}}
+{{- if $neuron.requests -}}{{- $_ := unset $neuron.requests "aws.amazon.com/neuron" -}}{{- end -}}
+{{- if $neuron.limits -}}{{- $_ := unset $neuron.limits "aws.amazon.com/neuron" -}}{{- end -}}
+{{- $_ := set $neuron "claims" (list (dict "name" "neuron")) -}}
+{{- end -}}
+{{- toYaml $neuron -}}
 {{- else if eq .Values.inference.accelerator "graviton" -}}
 {{- toYaml $resources.graviton -}}
 {{- else -}}

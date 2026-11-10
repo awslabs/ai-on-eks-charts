@@ -1,0 +1,89 @@
+# Qwen3.5-4B dense (GatedDeltaNet + GQA hybrid) on AWS Trainium2 via the
+# vLLM-Neuron plugin, served through the custom container built from
+#   charts/inference-charts/docker/qwen3-vllm-neuron/
+# (AWS Neuron vLLM Inference DLC 0.24.0.1.1.0 / Neuron SDK 2.32.0 + the sample
+# repo's REQUIRED core-file overrides + the qwen3_6 model package).
+#
+# The container ships a `vllm` wrapper that turns the chart's standard
+# `vllm serve <model> <flags>` into the sample's validated launcher
+# (src/_serve_main.py), so the coordinated Neuron config is always built:
+# single-shot prefill buckets, bounded vision_neuron_config, on-device greedy
+# sampling, chunked-prefill + prefix-caching disabled, and additional-config.
+# Launcher knobs the chart cannot express are passed through as env vars below.
+#
+# Deploy target: One trn2.3xlarge = 1 Trainium2 device (8 physical cores; LNC=2 ->
+# 4 logical NeuronCores) backing the sample's validated TP=4. Neuron devices are
+# allocated via DRA (Neuron DRA driver, DeviceClass neuron.aws.com), not the
+# device-plugin extended resource, and the pod runs on the pre-provisioned
+# static NodePool `neuron-dra-static`.
+# Weights (Qwen/Qwen3.5-4B, Apache-2.0, public) are pulled to the pod at
+# startup by the wrapper; no hf-token secret is required for this public model.
+model: Qwen/Qwen3.5-4B
+
+modelParameters:
+  # Explicit so the chart does not auto-derive --tensor-parallel-size from the
+  # neuron device count. The wrapper maps these recognized flags onto the
+  # launcher's TP / MAX_LEN / MAX_NUM_SEQS / KV_CACHE_DTYPE env vars.
+  tensorParallelSize: 4
+  maxModelLen: 4096
+  maxNumSeqs: 4
+  kvCacheDtype: auto
+
+inference:
+  serviceName: qwen3-5-4b-dra
+  serviceNamespace: default
+  accelerator: neuron
+  framework: vllm
+
+  modelServer:
+    image:
+      # Build steps: docker/qwen3-vllm-neuron/README.md
+      repository: <ACCOUNT>.dkr.ecr.<REGION>.amazonaws.com/qwen3-vllm-neuron
+      tag: "0.24.0.1.1.0"
+    env:
+      # Launcher knobs not expressible as vllm serve flags (see src/_serve_main.py).
+      # BUCKET must be strictly increasing and END at MAX_LEN (single-shot prefill).
+      BUCKET: "4096"
+      MAX_NUM_SEQS: "4"
+      MAX_LEN: "4096"
+      TP: "4"
+      # Bind to all interfaces INSIDE the pod; access is gated by the ClusterIP
+      # Service, not by binding. Supply VLLM_API_KEY via a secret for auth.
+      HOST: "0.0.0.0"
+      PORT: "8000"
+      # Force-skip EFA affinity: a single-node TP=4 run needs no cross-node EFA,
+      # and the container does not expose the host EFA device. Safe (affinity is
+      # a CPU-placement optimization, not a correctness requirement).
+      NEURON_SKIP_EFA_AFFINITY: "1"
+      # Keep the NEFF compile cache on the node's RAID0 instance store.
+      VLLM_CACHE_ROOT: "/var/tmp/neuron-compile-cache"
+    deployment:
+      replicas: 1
+      # trn2.3xlarge = 1 Trainium2 device (8 physical cores; LNC=2 -> 4 logical
+      # NeuronCores). Request the whole device; TP=4 uses its 4 logical cores.
+      instanceType: trn2.3xlarge
+      # DRA mode (below) uses the default scheduler; no neuron-scheduler needed.
+      sharedMemory: 4Gi
+      resources:
+        neuron:
+          # DRA: claim the single Trainium2 device as LNC=2 (4 logical cores -> TP=4).
+          dra:
+            enabled: true
+            count: 1
+            logicalNeuronCore: 2
+          requests:
+            memory: 48Gi
+          limits:
+            memory: 48Gi
+      # First boot downloads ~8 GB of weights and cold-compiles NEFFs
+      # (~10-15 min). Allow a long startup window before the probe fails.
+      startupProbe:
+        httpGet:
+          path: /health
+          port: 8000
+        periodSeconds: 30
+        failureThreshold: 60
+
+service:
+  type: ClusterIP
+  port: 8000

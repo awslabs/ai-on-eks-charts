@@ -1,0 +1,65 @@
+# Qwen3.5-4B on trn2.3xlarge via the DEVICE-PLUGIN path (aws.amazon.com/neuron
+# extended resource) on the DYNAMIC `neuron` NodePool — demonstrates Karpenter
+# scale-from-zero autoscaling. Pair with values-qwen3-5-4b-vllm-neuron.yaml
+# (DRA + static NodePool) to contrast both Neuron device-management mechanisms
+# on one cluster.
+#
+# Routing is automatic: only device-plugin nodes advertise
+# aws.amazon.com/neuron, and the static DRA NodePool does not autoscale, so a
+# pending pod here triggers Karpenter to launch a node in the dynamic `neuron`
+# pool (labelled neuron.aws/driver=device-plugin, where the device plugin runs).
+model: Qwen/Qwen3.5-4B
+
+modelParameters:
+  tensorParallelSize: 4
+  maxModelLen: 4096
+  maxNumSeqs: 4
+  kvCacheDtype: auto
+
+inference:
+  serviceName: qwen3-5-4b-dp
+  serviceNamespace: default
+  accelerator: neuron
+  framework: vllm
+
+  modelServer:
+    image:
+      # Build steps: docker/qwen3-vllm-neuron/README.md
+      repository: <ACCOUNT>.dkr.ecr.<REGION>.amazonaws.com/qwen3-vllm-neuron
+      tag: "0.24.0.1.1.0"
+    env:
+      BUCKET: "4096"
+      MAX_NUM_SEQS: "4"
+      MAX_LEN: "4096"
+      TP: "4"
+      HOST: "0.0.0.0"
+      PORT: "8000"
+      NEURON_SKIP_EFA_AFFINITY: "1"
+      VLLM_CACHE_ROOT: "/var/tmp/neuron-compile-cache"
+    deployment:
+      replicas: 1
+      instanceType: trn2.3xlarge
+      # Classic device-plugin path uses the Neuron scheduler extension profile.
+      schedulerName: neuron-scheduler
+      sharedMemory: 4Gi
+      resources:
+        neuron:
+          # Extended-resource request (DRA disabled): 1 Trainium2 device = 8 physical
+          # NeuronCores. The device plugin does not set LNC, so the node default
+          # (LNC=2, NEURON_LOGICAL_NC_CONFIG) applies -> 4 logical NeuronCores -> TP=4.
+          requests:
+            aws.amazon.com/neuron: "1"
+            memory: 48Gi
+          limits:
+            aws.amazon.com/neuron: "1"
+            memory: 48Gi
+      startupProbe:
+        httpGet:
+          path: /health
+          port: 8000
+        periodSeconds: 30
+        failureThreshold: 60
+
+service:
+  type: ClusterIP
+  port: 8000

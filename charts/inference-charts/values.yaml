@@ -129,6 +129,19 @@ inference:
             aws.amazon.com/neuron: 1
           limits:
             aws.amazon.com/neuron: 1
+          # Dynamic Resource Allocation (DRA) for Neuron. Requires the Neuron DRA
+          # driver (DeviceClass "neuron.aws.com") and Kubernetes >= 1.34. When
+          # enabled, the chart renders a ResourceClaimTemplate and wires it via
+          # pod resourceClaims + container resources.claims INSTEAD of the
+          # aws.amazon.com/neuron extended resource above, and does NOT set a
+          # neuron scheduler (the default scheduler handles DRA). Any memory
+          # requests/limits on this neuron block are preserved.
+          dra:
+            enabled: false
+            deviceClassName: neuron.aws.com
+            count:             # devices to claim; empty = allocationMode All (all matching devices on the node)
+            logicalNeuronCore: # per-workload LNC (1 or 2); empty = driver default
+            instanceType:      # optional CEL filter on device.attributes['neuron.aws.com'].instanceType
         # Graviton (ARM64 CPU) has no device-plugin resource; request CPU/memory only.
         graviton:
           requests:
@@ -225,6 +238,11 @@ inference:
       readinessProbe: {} # e.g. {httpGet: {path: /health, port: 8000}, periodSeconds: 10}
       terminationGracePeriodSeconds: # e.g. 300, so in-flight generations finish before SIGKILL
       tolerations: [] # e.g. [{key: "nvidia.com/gpu", operator: "Exists", effect: "NoSchedule"}]
+      # Scheduler for neuron pods (only applied when accelerator=neuron). The
+      # k8s-neuron-scheduler extender runs under a scheduler profile whose name
+      # varies by cluster — commonly "my-scheduler"; some clusters register it
+      # as "neuron-scheduler". Defaults to my-scheduler when unset.
+      schedulerName:
     env: {}
 
 s3ModelCopy:
