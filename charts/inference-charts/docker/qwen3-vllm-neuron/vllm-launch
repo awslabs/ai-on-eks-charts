@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# vLLM wrapper for the Qwen3.5/3.6 dense vLLM-Neuron image.
+#
+# The ai-on-eks inference-charts vllm template launches the container with:
+#     /bin/sh -c "vllm serve <MODEL> <flags...>"
+#
+# A plain `vllm serve` CANNOT serve these hybrid GatedDeltaNet models: the
+# architecture must be registered, the two core-file overrides must be live,
+# and vLLM-Neuron needs a coordinated launch config (single-shot prefill
+# buckets, bounded vision_neuron_config, on-device greedy sampling, chunked
+# prefill + prefix caching disabled). The sample repo's launcher
+# (src/_serve_main.py) builds exactly that from env vars.
+#
+# So for `serve` we translate the recognized vllm flags + env into the
+# launcher's env vars, ensure the weights exist locally (the launcher requires
+# a local directory), and exec the launcher. Any other subcommand is delegated
+# unchanged to the stock vLLM CLI.
+set -euo pipefail
+
+QWEN_SRC="/opt/qwen/src"
+export PYTHONPATH="${QWEN_SRC}:${PYTHONPATH:-}"
+
+if [[ "${1:-}" != "serve" ]]; then
+  exec python -m vllm.entrypoints.cli.main "$@"
+fi
+shift
+
+# ---- parse the chart-generated `vllm serve <model> <flags>` ----------------
+model_arg=""
+args=("$@")
+i=0
+while [[ $i -lt ${#args[@]} ]]; do
+  a="${args[$i]}"
+  case "$a" in
+    --tensor-parallel-size|-tp) i=$((i + 1)); export TP="${args[$i]}" ;;
+    --max-model-len)            i=$((i + 1)); export MAX_LEN="${args[$i]}" ;;
+    --max-num-seqs)             i=$((i + 1)); export MAX_NUM_SEQS="${args[$i]}" ;;
+    --kv-cache-dtype)           i=$((i + 1)); export KV_CACHE_DTYPE="${args[$i]}" ;;
+    --host)                     i=$((i + 1)); export HOST="${args[$i]}" ;;
+    --port)                     i=$((i + 1)); export PORT="${args[$i]}" ;;
+    --api-key)                  i=$((i + 1)); export VLLM_API_KEY="${args[$i]}" ;;
+    # The launcher derives max-num-batched-tokens from BUCKET/MAX_LEN.
+    --max-num-batched-tokens)   i=$((i + 1)) ;;
+    --*) echo "[vllm-launch] ignoring unrecognized flag: $a" >&2 ;;
+    *)   [[ -z "$model_arg" ]] && model_arg="$a" ;;
+  esac
+  i=$((i + 1))
+done
+
+# ---- resolve MODEL to a local directory ------------------------------------
+# Precedence: MODEL env > positional model arg > HF_MODEL_ID env.
+if [[ -z "${MODEL:-}" ]]; then
+  MODEL="${model_arg:-${HF_MODEL_ID:-}}"
+fi
+if [[ -z "${MODEL:-}" ]]; then
+  echo "[vllm-launch] ERROR: no model specified (set .Values.model or MODEL)" >&2
+  exit 2
+fi
+
+if [[ ! -d "${MODEL}" ]]; then
+  repo="${MODEL}"
+  dest="${MODEL_DIR:-/models/$(basename "${repo}")}"
+  if [[ ! -d "${dest}" || -z "$(ls -A "${dest}" 2>/dev/null)" ]]; then
+    echo "[vllm-launch] downloading weights: ${repo} -> ${dest}" >&2
+    mkdir -p "${dest}"
+    hf download "${repo}" --local-dir "${dest}"
+  fi
+  MODEL="${dest}"
+fi
+export MODEL
+
+echo "[vllm-launch] exec launcher: MODEL=${MODEL} TP=${TP:-4} MAX_LEN=${MAX_LEN:-4096} MAX_NUM_SEQS=${MAX_NUM_SEQS:-4} BUCKET=${BUCKET:-<MAX_LEN>}" >&2
+exec python "${QWEN_SRC}/_serve_main.py"

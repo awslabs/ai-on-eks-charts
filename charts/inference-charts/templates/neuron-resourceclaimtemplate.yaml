@@ -1,0 +1,40 @@
+{{- if and (or (eq .Values.inference.framework "vllm") (eq .Values.inference.framework "aibrix")) (eq .Values.inference.accelerator "neuron") (dig "dra" "enabled" false .Values.inference.modelServer.deployment.resources.neuron) }}
+{{- $dra := .Values.inference.modelServer.deployment.resources.neuron.dra }}
+{{- $deviceClass := $dra.deviceClassName | default "neuron.aws.com" }}
+apiVersion: resource.k8s.io/v1
+kind: ResourceClaimTemplate
+metadata:
+  name: {{ .Values.inference.serviceName }}-neuron
+  namespace: {{ .Values.inference.serviceNamespace }}
+  labels:
+    "app.kubernetes.io/component": "{{ .Values.inference.serviceName }}"
+    {{- include "inference-charts.extraLabels" . | nindent 4 }}
+spec:
+  spec:
+    devices:
+      requests:
+        - name: neuron
+          exactly:
+            deviceClassName: {{ $deviceClass }}
+            {{- if $dra.count }}
+            allocationMode: ExactCount
+            count: {{ $dra.count }}
+            {{- else }}
+            allocationMode: All
+            {{- end }}
+            {{- if $dra.instanceType }}
+            selectors:
+              - cel:
+                  expression: "device.attributes['neuron.aws.com'].instanceType == '{{ $dra.instanceType }}'"
+            {{- end }}
+      {{- if $dra.logicalNeuronCore }}
+      config:
+        - requests: ["neuron"]
+          opaque:
+            driver: {{ $deviceClass }}
+            parameters:
+              apiVersion: neuron.aws.com/v1
+              kind: NeuronConfig
+              logicalNeuronCore: {{ $dra.logicalNeuronCore }}
+      {{- end }}
+{{- end }}

@@ -86,7 +86,9 @@ spec:
       terminationGracePeriodSeconds: {{ . }}
       {{- end }}
       {{- if eq .Values.inference.accelerator "neuron" }}
-      schedulerName: my-scheduler
+      {{- if not (dig "dra" "enabled" false .Values.inference.modelServer.deployment.resources.neuron) }}
+      schedulerName: {{ .Values.inference.modelServer.deployment.schedulerName | default "my-scheduler" }}
+      {{- end }}
       {{- end }}
       {{- if or (eq .Values.inference.accelerator "neuron") .Values.inference.modelServer.deployment.tolerations }}
       tolerations:
@@ -137,6 +139,11 @@ spec:
                     {{- end }}
             {{- end }}
         {{- end }}
+      {{- end }}
+      {{- if and (eq .Values.inference.accelerator "neuron") (dig "dra" "enabled" false .Values.inference.modelServer.deployment.resources.neuron) }}
+      resourceClaims:
+        - name: neuron
+          resourceClaimTemplateName: {{ .Values.inference.serviceName }}-neuron
       {{- end }}
       volumes:
       {{- if .Values.inference.modelServer.deployment.sharedMemory }}

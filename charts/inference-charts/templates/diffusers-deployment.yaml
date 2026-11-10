@@ -43,7 +43,7 @@ spec:
             {{- if eq .Values.inference.accelerator "gpu" }}
             {{- toYaml .Values.inference.modelServer.deployment.resources.gpu | nindent 12 }}
             {{- else }}
-            {{- toYaml .Values.inference.modelServer.deployment.resources.neuron | nindent 12 }}
+            {{- toYaml (omit .Values.inference.modelServer.deployment.resources.neuron "dra") | nindent 12 }}
             {{- end }}
           volumeMounts:
             - mountPath: /app/serve_script.py
